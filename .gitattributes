@@ -1,0 +1,13 @@
+# Normalize line endings so a Windows checkout doesn't produce whole-file
+# diffs against a macOS/Linux one. Four devs on mixed machines will otherwise
+# spend merge time on CRLF churn that changes nothing.
+* text=auto eol=lf
+
+# Binary — never touch these.
+*.png binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.woff binary
+*.woff2 binary

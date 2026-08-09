@@ -1,34 +1,38 @@
-# DESIGN.md — "Passport" Theme
+# DESIGN.md — "Alpine" Theme
 
 Design specification for **Sage Adventurer**, an AI travel-planning web app.
 This document is the single source of truth for visual design. An implementer
 should be able to build the UI from this file alone, without seeing any
 screenshot.
 
-Stack assumption: React + TypeScript, TanStack Start (file-based routes),
-Tailwind CSS v4 (CSS-first config in `src/styles.css`), shadcn/ui components,
-lucide-react icons. If the stack differs, keep the tokens and specs and adapt
-the syntax.
+Stack: **Next.js (App Router) + React + TypeScript strict**, Tailwind CSS v4
+(CSS-first config in `styles/tokens.css`), lucide-react icons. This matches the
+locked stack in `MasterPrompt.md` §3. The app is a **PWA** and must work on both
+a phone and a projector.
 
 ---
 
 ## 1. Theme identity
 
-**Name:** Passport.
+**Name:** Alpine.
 
-**Mood:** A well-worn leather passport with gold foil stamps. Ink-navy, warm
-paper, small precious metallic marks. The product feels like a considered
-travel journal — calm, warm, premium, quietly confident.
+**Tagline from the palette sheet:** *Calm. Outdoors. Sophisticated.*
+Supporting adjectives: **Calm · Outdoors · Clear**.
 
-**Design intent:** The interface is a paper surface, not a screen. The canvas is
-warm cream rather than white so cards read as pages laid on a desk. Navigation
-is a deep navy spine on the left. Gold is treasure, not decoration: it appears
-only where the user is meant to act or measure progress. Nothing bounces,
-nothing glows, nothing shouts. Density is generous — the app should feel like it
-has room to breathe even when full of data.
+**Mood:** A clear morning above the treeline. Cold deep-blue water, pine, and
+snow. The product feels like well-made outdoor equipment — precise, unfussy,
+quietly expensive. Confidence without noise.
+
+**Design intent:** The canvas is snow — a very slightly cool off-white, never
+pure `#fff`, so cards read as objects resting on a field rather than holes in a
+screen. Navigation is a deep Alpine Blue spine on the left (a bottom tab bar on
+mobile). Pine Green is the single accent: it marks where the user acts or where
+progress is measured, and nowhere else. Mist is the quiet fill for alternating
+tiles and banners. Nothing bounces, nothing glows, nothing shouts.
 
 **Not:** playful, neon, gradient-heavy, "wellness soft", dashboard-cold, or
-generic-SaaS.
+generic-SaaS. In particular: no teal-to-purple gradients, and Pine Green must
+never drift toward mint or lime.
 
 ---
 
@@ -40,113 +44,123 @@ through a token so theming and dark mode work.
 
 ### 2.1 Palette anchors (reference only, not for use in code)
 
+The five named Alpine colors, exactly as given on the palette sheet:
+
+| Name | Hex | Role in the UI |
+| --- | --- | --- |
+| **Alpine Blue** | `#294C60` | Sidebar spine, headings on light, deep ink |
+| **Pine Green** | `#4D7C6F` | The single accent — CTAs, active state, progress |
+| **Mist** | `#DDE7E1` | Quiet fill: alternating tiles, banners, icon chips |
+| **Snow** | `#F4F7F5` | Page canvas |
+| **Stone Gray** | `#6B7A78` | Secondary text, inactive icons |
+
+Derived shades (interpolated from the five above, not new hues):
+
 | Role | Hex reference |
 | --- | --- |
-| Navy spine | `#0F2740` |
-| Navy raised | `#12324F` |
-| Gold primary | `#E8B35C` |
-| Gold deep (links, ring) | `#D99B3F` |
-| Cream canvas | `#FAF6EF` |
-| Card | `#FFFDFA` |
-| Warm border | `#EEE5D7` |
-| Ink | `#152438` |
-| Muted ink | `#8A8375` |
+| Alpine raised (sidebar hover surface) | `#345E76` |
+| Pine deep (link, ring stroke, hover) | `#3C6659` |
+| Pine light (sidebar active pill text, dark-mode accent) | `#6B9C8D` |
+| Mist deep (banner border, track) | `#C9D8CF` |
+| Card | `#FDFEFD` |
+| Border | `#DCE4E4` |
+| Ink | `#1B2B35` |
 
-### 2.2 Token definitions — `src/styles.css`
+### 2.2 Token definitions — `styles/tokens.css`
 
 ```css
 :root {
   --radius: 0.875rem; /* 14px card radius */
 
-  /* Canvas & surfaces */
-  --background: oklch(0.972 0.012 85);
-  --foreground: oklch(0.268 0.032 254);
-  --card: oklch(0.99 0.005 85);
-  --card-foreground: oklch(0.268 0.032 254);
-  --popover: oklch(0.99 0.005 85);
-  --popover-foreground: oklch(0.268 0.032 254);
+  /* Canvas & surfaces — Snow / card */
+  --background: oklch(0.973 0.004 157);       /* #F4F7F5 Snow */
+  --foreground: oklch(0.280 0.028 237);       /* #1B2B35 Ink */
+  --card: oklch(0.996 0.002 146);             /* #FDFEFD */
+  --card-foreground: oklch(0.280 0.028 237);
+  --popover: oklch(0.996 0.002 146);
+  --popover-foreground: oklch(0.280 0.028 237);
 
-  /* Gold — the single accent */
-  --primary: oklch(0.795 0.107 76);
-  --primary-foreground: oklch(0.29 0.034 254);
-  --primary-deep: oklch(0.719 0.116 71);      /* links, ring stroke, arrows */
+  /* Pine Green — the single accent */
+  --primary: oklch(0.548 0.056 175);          /* #4D7C6F Pine Green */
+  --primary-foreground: oklch(0.996 0.002 146);
+  --primary-deep: oklch(0.475 0.052 172);     /* #3C6659 links, ring stroke, arrows */
 
-  /* Warm cream fills (alternating tiles, banners) */
-  --accent: oklch(0.958 0.026 79);
-  --accent-foreground: oklch(0.32 0.036 60);
+  /* Mist fills (alternating tiles, banners, icon chips) */
+  --accent: oklch(0.919 0.013 160);           /* #DDE7E1 Mist */
+  --accent-foreground: oklch(0.340 0.032 220);
 
-  --secondary: oklch(0.968 0.008 85);
-  --secondary-foreground: oklch(0.268 0.032 254);
+  --secondary: oklch(0.955 0.006 160);
+  --secondary-foreground: oklch(0.280 0.028 237);
 
-  --muted: oklch(0.962 0.012 85);
-  --muted-foreground: oklch(0.598 0.021 85);
+  --muted: oklch(0.948 0.006 165);
+  --muted-foreground: oklch(0.567 0.018 187);  /* #6B7A78 Stone Gray */
 
-  --destructive: oklch(0.556 0.176 26);
-  --destructive-foreground: oklch(0.99 0.005 85);
+  --destructive: oklch(0.538 0.146 28);        /* #B3453A */
+  --destructive-foreground: oklch(0.996 0.002 146);
 
-  --border: oklch(0.923 0.018 82);
-  --input: oklch(0.923 0.018 82);
-  --ring: oklch(0.795 0.107 76);
+  --border: oklch(0.913 0.009 197);            /* #DCE4E4 */
+  --input: oklch(0.913 0.009 197);
+  --ring: oklch(0.548 0.056 175);
 
-  /* Navy sidebar (its own scale — it is a fixed dark surface in both themes) */
-  --sidebar: oklch(0.256 0.046 254);
-  --sidebar-raised: oklch(0.298 0.052 254);
-  --sidebar-foreground: oklch(0.885 0.016 250);
-  --sidebar-muted: oklch(0.758 0.026 250);
-  --sidebar-primary: oklch(0.795 0.107 76);
-  --sidebar-primary-foreground: oklch(0.29 0.034 254);
-  --sidebar-accent: oklch(1 0 0 / 8%);
-  --sidebar-accent-foreground: oklch(0.965 0.008 250);
-  --sidebar-border: oklch(1 0 0 / 9%);
-  --sidebar-ring: oklch(0.795 0.107 76);
+  /* Alpine Blue sidebar (its own scale — a fixed dark surface in both themes) */
+  --sidebar: oklch(0.399 0.053 235);           /* #294C60 Alpine Blue */
+  --sidebar-raised: oklch(0.462 0.061 235);    /* #345E76 */
+  --sidebar-foreground: oklch(0.919 0.013 160);
+  --sidebar-muted: oklch(0.760 0.024 200);
+  --sidebar-primary: oklch(0.548 0.056 175);   /* Pine Green pill */
+  --sidebar-primary-foreground: oklch(0.985 0.004 160);
+  --sidebar-accent: oklch(1 0 0 / 10%);
+  --sidebar-accent-foreground: oklch(0.975 0.006 160);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.653 0.057 173);
 
-  /* Progress / charts — gold-led, warm support */
-  --chart-1: oklch(0.795 0.107 76);   /* gold */
-  --chart-2: oklch(0.719 0.116 71);   /* gold deep */
-  --chart-3: oklch(0.52 0.058 235);   /* muted navy-teal */
-  --chart-4: oklch(0.68 0.078 42);    /* terracotta */
-  --chart-5: oklch(0.62 0.045 160);   /* sage */
-  --track: oklch(0.936 0.024 82);     /* unfilled ring/bar track */
+  /* Progress / charts — pine-led, cool support */
+  --chart-1: oklch(0.548 0.056 175);   /* pine green */
+  --chart-2: oklch(0.399 0.053 235);   /* alpine blue */
+  --chart-3: oklch(0.707 0.050 224);   /* muted sky */
+  --chart-4: oklch(0.687 0.097 55);    /* terracotta, for contrast only */
+  --chart-5: oklch(0.567 0.018 187);   /* stone gray */
+  --track: oklch(0.868 0.020 160);     /* #C9D8CF unfilled ring/bar track */
 
   /* Elevation */
-  --shadow-page: 0 1px 2px oklch(0.268 0.032 254 / 4%);
-  --shadow-lift: 0 6px 18px -8px oklch(0.268 0.032 254 / 14%);
+  --shadow-page: 0 1px 2px oklch(0.280 0.028 237 / 5%);
+  --shadow-lift: 0 6px 18px -8px oklch(0.280 0.028 237 / 16%);
 }
 
 .dark {
-  --background: oklch(0.205 0.028 254);
-  --foreground: oklch(0.945 0.012 85);
-  --card: oklch(0.252 0.032 254);
-  --card-foreground: oklch(0.945 0.012 85);
-  --popover: oklch(0.252 0.032 254);
-  --popover-foreground: oklch(0.945 0.012 85);
+  --background: oklch(0.238 0.030 236);
+  --foreground: oklch(0.945 0.008 160);
+  --card: oklch(0.290 0.036 236);
+  --card-foreground: oklch(0.945 0.008 160);
+  --popover: oklch(0.290 0.036 236);
+  --popover-foreground: oklch(0.945 0.008 160);
 
-  --primary: oklch(0.805 0.108 76);
-  --primary-foreground: oklch(0.24 0.03 254);
-  --primary-deep: oklch(0.775 0.112 73);
+  --primary: oklch(0.653 0.057 173);           /* #6B9C8D lifted for dark */
+  --primary-foreground: oklch(0.220 0.028 236);
+  --primary-deep: oklch(0.720 0.055 172);
 
-  --accent: oklch(0.302 0.038 254);
-  --accent-foreground: oklch(0.93 0.014 85);
+  --accent: oklch(0.345 0.040 232);
+  --accent-foreground: oklch(0.930 0.010 160);
 
-  --secondary: oklch(0.29 0.034 254);
-  --secondary-foreground: oklch(0.945 0.012 85);
+  --secondary: oklch(0.330 0.036 236);
+  --secondary-foreground: oklch(0.945 0.008 160);
 
-  --muted: oklch(0.29 0.034 254);
-  --muted-foreground: oklch(0.712 0.02 85);
+  --muted: oklch(0.330 0.036 236);
+  --muted-foreground: oklch(0.735 0.016 190);
 
-  --destructive: oklch(0.68 0.176 24);
-  --destructive-foreground: oklch(0.97 0.008 85);
+  --destructive: oklch(0.655 0.150 28);
+  --destructive-foreground: oklch(0.975 0.006 160);
 
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.805 0.108 76);
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.653 0.057 173);
 
-  --sidebar: oklch(0.222 0.03 254);
-  --sidebar-raised: oklch(0.268 0.036 254);
-  --track: oklch(1 0 0 / 12%);
+  --sidebar: oklch(0.300 0.040 236);
+  --sidebar-raised: oklch(0.360 0.048 236);
+  --track: oklch(1 0 0 / 13%);
 
-  --shadow-page: 0 1px 2px oklch(0 0 0 / 24%);
-  --shadow-lift: 0 6px 18px -8px oklch(0 0 0 / 40%);
+  --shadow-page: 0 1px 2px oklch(0 0 0 / 26%);
+  --shadow-lift: 0 6px 18px -8px oklch(0 0 0 / 42%);
 }
 ```
 
@@ -208,15 +222,28 @@ through a token so theming and dark mode work.
 
 ### 2.4 Color usage rules
 
-- Gold (`primary`) is allowed on: the active nav pill, section action links,
-  the budget/progress ring fill, the banner arrow, primary buttons, focus rings.
-  Nowhere else.
-- Cream (`accent`) is allowed on: alternating quick-action tiles, the
-  preferences banner, small icon chips inside cards.
-- Card bodies stay `card`. The page stays `background`. Never pure white.
-- Body text is `foreground`; every secondary/subtitle line is
-  `muted-foreground`.
-- The sidebar always uses the `sidebar-*` scale, never the page scale.
+- **Pine Green (`primary`) is the only accent.** It is allowed on: the active
+  nav pill, section action links, the budget/progress ring fill, the banner
+  arrow, primary buttons, and focus rings. Nowhere else. One Pine moment per
+  section at most.
+- **Mist (`accent`)** is allowed on: alternating quick-action tiles, the
+  preferences banner, and small icon chips inside cards. Mist is a surface,
+  never a text color.
+- **Alpine Blue** appears in exactly two places: the sidebar surface
+  (`--sidebar`) and as the base of `--foreground`. It is not a button color.
+- **Stone Gray** is `muted-foreground` only — subtitles, captions, inactive
+  icons. Never a background.
+- Card bodies stay `card`. The page stays `background` (Snow). Never pure
+  `#fff`, never `text-white`.
+- The sidebar always uses the `sidebar-*` scale, never the page scale. Pine
+  Green on Alpine Blue is the active pill; that pairing is the signature of the
+  theme and must not be substituted.
+
+**Contrast floors (verify, don't assume).** Pine Green `#4D7C6F` on Snow is
+~4.6:1 — it passes for body text but **primary buttons must use white-adjacent
+`--primary-foreground` on the Pine fill**, never Pine text on Mist (that pair
+fails). Stone Gray on Snow is ~4.6:1, acceptable for the 12.5px caption sizes
+specified in §3 but not below them.
 
 ---
 
@@ -290,21 +317,24 @@ micro-labels.
 - lucide-react, `1.5` stroke width, `size 18` in nav and inline, `size 24` in
   tile headers and card chips. Never mix stroke weights in one view.
 - Sidebar icons: `sidebar-muted` when inactive, `sidebar-primary-foreground`
-  when active (they sit on the gold pill). Card icons: `foreground` at reduced
+  when active (they sit on the Pine Green pill). Card icons: `foreground` at reduced
   emphasis, inside a `bg-accent` rounded chip when they lead a card.
-- Suggested mapping: Home `Home`, Explore `MapPin`, Plan a Trip `NotebookPen`,
-  My Trips `Briefcase`, Group Trips `Users`, Budget `IndianRupee`, Travel Log
-  `BookOpen`, Map `Map`, Notifications `Bell`, Profile `User`, Settings
-  `Settings`, Need help `CircleHelp`.
-- Quick actions: Surprise Me `Sparkle`-free — use `Compass`; Plan a Trip
-  `NotebookPen`; Group Plan `Users`; Budget Smart `Wallet`.
-- Brand mark: a small gold rounded-square (34px, `rounded-[10px]`) holding a
-  simple flame/leaf glyph in navy, beside the two-line wordmark
-  "Sage / Adventurer" set in Fraunces 600 at 16px.
-- Photography, when introduced, is warm-toned landscape/travel imagery, always
-  inside a `rounded-lg` frame with the standard hairline border. No stock
-  business photos. Emoji may appear at most once per screen (e.g. after the
-  greeting); never inside buttons or nav.
+- **Nav icon mapping (all 11 items).** Home `Home`, Explore `Compass`, Plan your
+  trip `NotebookPen`, My Trips `Briefcase`, Group Trips `Users`, Expenses
+  `Wallet`, Travel Log `BookOpen`, Map `Map`, Notifications `Bell`, Profile
+  `User`, Settings `Settings`. Pinned bottom: Need help `CircleHelp`.
+- Quick actions: Surprise Me `Compass`; Plan a Trip `NotebookPen`; Group Plan
+  `Users`; Budget Smart `Wallet`. **Never `Sparkles`** (MasterPrompt §11).
+- Mobile bottom tab bar uses a 5-item subset: Home, Explore, Plan, Trips,
+  Profile — same icons, 22px, label 10.5px beneath.
+- Brand mark: a 34px `rounded-[10px]` square filled Pine Green holding a simple
+  mountain glyph in `sidebar` blue, beside the two-line wordmark
+  "Sage / Adventurer" in Fraunces 600 at 16px.
+- Photography, when introduced, is cool-toned alpine/landscape imagery — snow,
+  water, pine, granite — always inside a `rounded-lg` frame with the standard
+  hairline border. No warm-golden travel stock, no business photos. Emoji may
+  appear at most once per screen (the greeting line); never inside buttons or
+  nav.
 
 ---
 
@@ -314,7 +344,7 @@ micro-labels.
 ┌──────────┬──────────────────────────────────────────────────────┐
 │ sidebar  │  greeting ................................  bell     │
 │ 248px    │  ┌────────────────── search (pill) ──────────────┐   │
-│ navy     │  ┌───────┬───────┬───────┬───────┐  4 quick tiles    │
+│ alpine   │  ┌───────┬───────┬───────┬───────┐  4 quick tiles    │
 │ fixed    │  Upcoming trip .......................... View all   │
 │          │  ┌──────── trip card ────────┬── budget ring ──┐    │
 │          │  Your itinerary at a glance ............. View plan  │
@@ -325,43 +355,78 @@ micro-labels.
 └──────────┴──────────────────────────────────────────────────────┘
 ```
 
-- **Sidebar:** fixed, full height, `248px` expanded / `76px` icon-only
-  collapsed. Padding `26px 18px`. Brand at top, nav list below, `Need help?`
-  pinned to the bottom above a `sidebar-border` hairline divider. Collapsing
-  keeps icons visible (mini variant, never fully hidden) and the trigger always
-  reachable.
+- **Sidebar:** fixed, full height, Alpine Blue, `248px` expanded / `76px`
+  icon-only collapsed. Padding `26px 18px`. Brand at top, the 11-item nav list
+  below, `Need help?` pinned to the bottom above a `sidebar-border` hairline
+  divider. Collapsing keeps icons visible (mini variant, never fully hidden) and
+  the trigger always reachable.
 - **Content column:** `flex-1`, `max-width: 1180px`, left-aligned within its
   padding (not centered on ultrawide — it grows to the max then stops).
 - **Grids:** quick actions `4` equal columns; upcoming-trip row asymmetric
   `1.55fr / 1fr` (trip card wider than budget); stat strip a single bordered
   container split into `4` equal cells by internal `1px` dividers.
 
-### Responsive
+### Responsive — the shell switches at 768px
+
+This app is a **PWA and must demo on both a phone and a projector.** The
+`768px` line is a hard switch between two different navigation models, not a
+reflow. Both are always built; neither is an afterthought.
 
 | Breakpoint | Behaviour |
 | --- | --- |
-| ≥1280px | As above. |
-| 1024–1279px | Sidebar collapses to icon-only (76px). Page padding 32px. |
-| 768–1023px | Sidebar becomes an off-canvas drawer with a header trigger. Quick actions 2×2. Trip/budget row stacks. Stat strip stays 4-up. |
-| <768px | Single column. Page padding 20px. Quick actions 2×2 with tighter tiles. Stat strip becomes 2×2 with dividers on both axes. Search field full width under the greeting. Bottom banner stacks its arrow to the right of wrapped text. |
+| ≥1280px | Full 248px Alpine Blue sidebar, as diagrammed. |
+| 1024–1279px | Sidebar collapses to icon-only (76px), tooltips on hover. Page padding 32px. |
+| 768–1023px | Sidebar stays icon-only. Quick actions 2×2. Trip/budget row stacks. Stat strip stays 4-up. |
+| <768px | **Sidebar is replaced entirely by a bottom tab bar.** Single column, page padding 20px, `padding-bottom` reserved for the bar. Quick actions 2×2. Stat strip becomes 2×2 with dividers on both axes. Search full width under the greeting. |
+
+**Bottom tab bar (<768px only)**
+Fixed to the viewport bottom, `bg-card`, `border-t border-border`, height 60px
+plus `env(safe-area-inset-bottom)` so it clears the iOS home indicator. Five
+equal cells: Home, Explore, Plan, Trips, Profile. Each is a 22px icon over a
+10.5px DM Sans label. Inactive `muted-foreground`; active `primary` with the
+icon at stroke 2. The remaining six nav items (Group Trips, Expenses, Travel
+Log, Map, Notifications, Settings) are reachable from a "More" sheet opened
+from the header, not crammed into the bar.
 
 ---
 
 ## 7. Component specs
 
 ### Sidebar
-Navy (`bg-sidebar`) column, `text-sidebar-foreground`. Contains brand lockup,
-nav list, bottom help link. No shadow — it separates by color alone.
+Alpine Blue (`bg-sidebar`) column, `text-sidebar-foreground`. Contains brand
+lockup, the 11-item nav list, bottom help link. No shadow — it separates by
+color alone. Hidden entirely below 768px.
 
 ### NavItem
 Full-pill row, `padding 10px 14px`, `gap 12px`, icon 18px + label 14px.
 - Default: `text-sidebar-muted`, transparent background.
 - Hover: `bg-sidebar-accent`, `text-sidebar-accent-foreground`.
-- Active: `bg-sidebar-primary`, `text-sidebar-primary-foreground`, label
-  weight 500. Exactly one active item; driven by the current route.
+- Active: `bg-sidebar-primary` (Pine Green), `text-sidebar-primary-foreground`,
+  label weight 500. Exactly one active item; driven by the current route.
 - Focus-visible: 2px `sidebar-ring` outline, 2px offset.
 - Collapsed: pill shrinks to a 44px square centered icon, label hidden, name
   shown as a tooltip.
+
+### Nav items — the full list, in order
+Home · Explore · Plan your trip · My Trips · Group Trips · Expenses ·
+Travel Log · Map · Notifications · Profile · Settings. Then the pinned
+`Need help?` below the divider.
+
+Defined once as a typed config array (`lib/config/nav.ts`) and consumed by both
+the sidebar and the bottom bar. **Never hand-write the list twice** — the two
+shells must not be able to drift apart.
+
+Only **Home**, **Plan your trip**, and **Expenses** have real screens in this
+build. The other eight route to a styled empty state (§8) — a real route with a
+real frame, never a dead link or a `#`.
+
+### BottomTabBar (<768px)
+Five cells from the same nav config: Home, Explore, Plan, Trips, Profile.
+`bg-card`, `border-t border-border`, no shadow. 22px icon over a 10.5px label,
+`gap 4px`, cells `flex-1`. Active cell: `text-primary`, icon stroke 2. Inactive:
+`text-muted-foreground`, stroke 1.5. The bar is `fixed bottom-0 inset-x-0 z-40`
+with `padding-bottom: env(safe-area-inset-bottom)`; the page reserves matching
+space so nothing hides under it.
 
 ### GreetingHeader
 Left: `h1` "Good morning, {firstName}" in Fraunces 26 (greeting word swaps with
@@ -394,21 +459,21 @@ Content (fixed):
 an underline only — never a background.
 
 ### TripCard
-Card, `padding 24px`, horizontal: 52px `bg-accent` rounded chip with icon,
-then a stacked title (Fraunces 17/600) and meta line
+Card, `padding 24px`, horizontal: 52px `bg-accent` (Mist) rounded chip with
+icon, then a stacked title (Fraunces 17/600) and meta line
 (`muted-foreground` 13px) formatted `May 24 – May 28 · 3 Days` using an en dash
 and a middot. Hover: `shadow-lift`.
 
 ### BudgetRing (Budget overview card)
 Card, `padding 22px 24px`, relative. Top-left label "Budget overview" in
 DM Sans 13.5/700. Below it the spent amount in Fraunces 30/600
-(`₹32,500`), then `of ₹50,000` in `muted-foreground` 12.5px.
+(`$1,300`), then `of $2,000` in `muted-foreground` 12.5px.
 Ring on the right, vertically centered: 86px SVG, 9px stroke, `--track`
-background circle, `--primary-deep` progress arc, `stroke-linecap: round`,
-rotated `-90deg` so it starts at 12 o'clock. The percentage sits **centered
-inside** the ring in `primary-deep` 12/700 — it must never overlap or sit
-outside the stroke. Over 100% turns the arc `destructive` and the percentage
-with it.
+background circle, `--primary-deep` (Pine) progress arc,
+`stroke-linecap: round`, rotated `-90deg` so it starts at 12 o'clock. The
+percentage sits **centered inside** the ring in `primary-deep` 12/700 — it must
+never overlap or sit outside the stroke. Over 100% turns the arc `destructive`
+and the percentage with it.
 
 ### StatStrip
 One `card` container with a hairline border and `overflow-hidden`, divided into
@@ -417,22 +482,52 @@ cell is center-aligned: Fraunces 26/600 numeral, then a `muted-foreground`
 12.5px label 6px below. Labels: Days, Destinations, Activities, Travelers.
 
 ### PromptBanner
-Full-width `bg-accent` row with a slightly warmer border, `padding 19px 22px`,
+Full-width `bg-accent` (Mist) row with a `#C9D8CF` border, `padding 19px 22px`,
 `rounded-lg`. Left: single-line 14px message in `accent-foreground`. Right: a
 17px arrow in `primary-deep`. Hover slides the arrow `+3px`. The whole banner is
 clickable. Preceded by a Fraunces 17/600 lead-in line ("Let's continue
 planning").
 
 ### Buttons and links
-- **Primary:** `bg-primary text-primary-foreground`, `rounded-full`,
-  `padding 10px 20px`, DM Sans 14/600. Hover darkens to `primary-deep`. No
-  gradient, no shadow.
+- **Primary:** `bg-primary text-primary-foreground` (Pine fill, near-white
+  label), `rounded-full`, `padding 10px 20px`, DM Sans 14/600. Hover darkens to
+  `primary-deep`. No gradient, no shadow.
 - **Secondary:** `bg-card border-border text-foreground`, same geometry, hover
   `bg-accent`.
 - **Ghost:** transparent, hover `bg-accent`.
 - **Inline link:** `text-primary-deep`, underline on hover only.
 - Never ship the default shadcn slate/black button look. Never place two
-  primary CTAs in the same section.
+  primary CTAs in the same section. **Never Pine text on a Mist fill** — that
+  pair fails contrast (§2.4).
+
+### AuthCard (login screen)
+The login screen is the first thing a judge sees, so it carries the theme
+alone — no dashboard chrome to help it.
+
+Layout: full-viewport `bg-background` (Snow), centered card at `max-width
+420px`, `padding 36px 32px`, `rounded-xl`, `border-border`, `shadow-lift`.
+Above the card: the brand lockup, centered, with the Pine mountain mark. Below
+the mark, a Fraunces 26/500 line ("Explore more. Worry less." — the Alpine
+mockup's own copy) and a `muted-foreground` 13px subtitle.
+
+Card contents in order:
+1. Email field — label 12.5px DM Sans 500, input 44px tall, `bg-card`,
+   `border-input`, `rounded-md`, focus `ring-2 ring-ring`.
+2. Password field — same, with a trailing `Eye`/`EyeOff` ghost toggle.
+3. Inline `destructive` error line, reserved space so the card doesn't jump.
+4. Primary button, **full width** (the one place a primary button is not a
+   pill-with-padding — it is `rounded-full` but `w-full`), label "Sign in".
+5. Divider: hairline `border-border` with a centered `bg-card` "or" in
+   `muted-foreground` 12px.
+6. Google button — **secondary style, never primary**, full width, with the
+   4-color Google `G` mark at 18px and the label "Continue with Google". Two
+   primary CTAs stacked would violate §7.
+
+On desktop ≥1024px the card sits in the right 40% of the screen against a
+left panel filled with Alpine Blue and a single alpine photograph at 30%
+opacity. The panel is decorative: if the image fails to load the panel is
+still a valid solid Alpine Blue field. Below 1024px the panel is dropped
+entirely and the card centers.
 
 ---
 
@@ -444,7 +539,7 @@ planning").
   color matching the surface. Never remove focus outlines.
 - **Active/pressed:** `scale(0.99)`, no color inversion.
 - **Disabled:** `opacity-50`, `cursor-not-allowed`, no color change.
-- **Loading:** skeletons matching the real shape — cream `bg-muted` blocks with
+- **Loading:** skeletons matching the real shape — Mist `bg-muted` blocks with
   the card's radius and a slow shimmer. Never spinners inside cards.
 - **Empty states:** card-sized, centered, a 24px muted icon, a Fraunces 17
   line, one `muted-foreground` sentence, and at most one secondary button.
@@ -465,8 +560,11 @@ planning").
   "Collaborative itinerary management".
 - Greeting adapts to time of day: Good morning / Good afternoon / Good evening,
   followed by the user's first name.
-- Currency: Indian rupee, `₹` prefix, grouped with commas, no decimals —
-  `₹32,500`. Comparative form is `of ₹50,000` on its own muted line.
+- **Currency: US dollar**, `$` prefix, grouped with commas, no decimals —
+  `$1,300`. Comparative form is `of $2,000` on its own muted line. This
+  overrides the `₹` shown in the theme mockups; MasterPrompt §9 fixes the demo
+  in USD for a NYC audience. All formatting goes through one helper in
+  `lib/config/currency.ts` — never `toLocaleString` inline in a component.
 - Dates: `May 24 – May 28` (en dash, spaces). Duration appended with a middot:
   `May 24 – May 28 · 3 Days`.
 - Numbers in stat cells are bare integers; the unit lives in the label below.
@@ -477,74 +575,119 @@ planning").
 ## 10. Do / Don't
 
 **Do**
-- Keep the canvas warm cream and cards near-white.
-- Keep gold scarce — one gold moment per section at most.
+- Keep the canvas Snow and cards near-white but never pure white.
+- Keep Pine Green scarce — one Pine moment per section at most.
 - Pair every card border with the page shadow.
-- Preserve the alternating cream/white tile rhythm.
+- Preserve the alternating Mist/card tile rhythm.
 - Keep exactly 4 quick actions, exactly 4 stat cells, exactly one banner.
+- Define nav once in `lib/config/nav.ts` and render both shells from it.
 
 **Don't**
-- No purple/indigo, no blue-to-purple gradients, no neon.
+- No purple/indigo, no blue-to-purple gradients, no neon. **No teal** — Pine
+  Green is a desaturated forest hue and must not slide toward the Mediterranean
+  or Aurora themes on the palette sheet.
 - No pure white (`#fff`) page or card backgrounds; no `text-white` in
   components.
 - No default shadcn dark button; no two CTAs side by side.
 - No "Trusted by", "As seen in", testimonial, or marketing sections — this is a
-  logged-in product surface.
+  logged-in product surface. The login screen is the one exception to "logged
+  in", and it still gets no marketing copy.
 - No `Sparkles` icon as a brand or empty-state mark.
 - No multi-column link footer inside the app shell.
-- No hardcoded hex in components; tokens only.
+- No hardcoded hex in components; tokens only. The Google `G` mark is the sole
+  exemption — its brand colors are fixed and live inside one SVG component.
+- No `₹`. The mockups show it; this document overrides them (§9).
 
 ---
 
 ## 11. Implementation notes
 
 **Where things live**
-- Tokens: `src/styles.css` — `:root` / `.dark` for values, `@theme inline` for
-  the utility mapping. Tailwind v4 has no `tailwind.config.js` on this stack.
-- Fonts: `<link>` tags in the root route head (`src/routes/__root.tsx`).
-- Shell: the sidebar + content frame is a layout route so it renders once and
-  every page mounts into its `<Outlet />`.
+- Tokens: `styles/tokens.css` — `:root` / `.dark` for values, `@theme inline`
+  for the utility mapping. Tailwind v4 has no `tailwind.config.js`.
+  Imported once from `app/globals.css`.
+- Fonts: `next/font/google` for Fraunces and DM Sans in `app/layout.tsx`,
+  exposed as `--font-display` and `--font-sans`. Do not `@import` a remote URL
+  in CSS and do not hand-write `<link>` tags — `next/font` self-hosts and
+  avoids the layout shift.
+- Nav config: `lib/config/nav.ts`, a single typed array (§7).
+- Currency: `lib/config/currency.ts`.
+- Auth: `lib/auth/provider.ts` — one interface, one local implementation.
+  Supabase swaps in by replacing that file only; no page imports Supabase
+  directly.
+- Shell: `app/(app)/layout.tsx` renders sidebar + bottom bar once; every page
+  mounts as its child. The login screen lives in a separate `app/(auth)`
+  group so it does not inherit the shell.
 
-**Suggested route/component map**
+**Route map**
 
-| Route | Screen | Key components |
+| Route | Screen | State in this build |
 | --- | --- | --- |
-| `/` | Home dashboard (spec'd above) | GreetingHeader, SearchBar, QuickActionTile ×4, SectionHeader, TripCard, BudgetRing, StatStrip, PromptBanner |
-| `/explore` | Destination discovery | SearchBar, filter chips, destination card grid |
-| `/plan` | Itinerary builder | day-by-day timeline of TripCard-style rows |
-| `/trips` | My trips | TripCard list with status chips |
-| `/trips/group` | Group trips | TripCard list + member avatars |
-| `/budget` | Budget detail | BudgetRing (large), category rows with progress bars |
-| `/log` | Travel log | journal entries, warm image frames |
-| `/map` | Map view | full-bleed map inside a rounded framed panel |
-| `/notifications` | Notifications | grouped list rows, unread dot in `primary` |
-| `/profile` | Profile | avatar, editable fields |
-| `/settings` | Settings | grouped setting cards with switches |
+| `/login` | Auth screen | **Built.** Email/password + Google |
+| `/` | Home dashboard | **Built.** Full spec above |
+| `/plan` | Plan your trip | **Built.** Day-by-day itinerary rows |
+| `/expenses` | Expenses | **Built.** BudgetRing (large), category rows |
+| `/explore` | Destination discovery | Empty state |
+| `/trips` | My trips | Empty state |
+| `/trips/group` | Group trips | Empty state |
+| `/log` | Travel log | Empty state |
+| `/map` | Map view | Empty state |
+| `/notifications` | Notifications | Empty state |
+| `/profile` | Profile | Empty state |
+| `/settings` | Settings | Empty state |
 
 **Component file layout**
 ```text
-src/components/
-  app-sidebar.tsx          # navy shell nav
-  nav-item.tsx
-  greeting-header.tsx
-  search-bar.tsx
-  quick-action-tile.tsx
-  section-header.tsx
-  trip-card.tsx
-  budget-ring.tsx
-  stat-strip.tsx
-  prompt-banner.tsx
+components/
+  shell/
+    app-sidebar.tsx        # Alpine Blue spine, >=768px
+    bottom-tab-bar.tsx     # <768px
+    nav-item.tsx
+    brand-mark.tsx
+  ui/
+    card.tsx  button.tsx  input.tsx  empty-state.tsx
+  home/
+    greeting-header.tsx
+    search-bar.tsx
+    quick-action-tile.tsx
+    section-header.tsx
+    trip-card.tsx
+    budget-ring.tsx
+    stat-strip.tsx
+    prompt-banner.tsx
+  auth/
+    login-form.tsx
+    google-mark.tsx
 ```
 
-**Definition of done for the home screen**
-1. Sidebar shows all 11 nav items plus the pinned help link; Home is the gold
-   pill and follows the route.
-2. Greeting, bell, and pill search field all present and aligned.
-3. Exactly 4 quick-action tiles with the specified copy and cream/white
+**PWA requirements**
+- `app/manifest.ts` returning a typed manifest: `name` "Sage Adventurer",
+  `short_name` "Sage", `display: "standalone"`, `background_color` Snow
+  `#F4F7F5`, `theme_color` Alpine Blue `#294C60`.
+- Maskable icons at 192 and 512, plus an apple-touch-icon. The icon is the
+  Pine mountain mark on Alpine Blue with safe-area padding for maskable crops.
+- A service worker registered client-side for installability only. **No offline
+  sync** (MasterPrompt §11) — do not cache API responses or add a sync queue.
+- `viewport-fit=cover` plus the safe-area padding on the tab bar (§7).
+
+**Definition of done for this build**
+1. Sidebar shows all 11 nav items plus the pinned help link; the active item is
+   the Pine pill and follows the route.
+2. Below 768px the sidebar is gone and the 5-item bottom bar is fixed, clearing
+   the safe area; both shells render from the same nav config.
+3. Login accepts `admin` / `admin123`, rejects anything else with an inline
+   `destructive` message, and routes to `/`. Google button calls the provider
+   stub without throwing.
+4. Unauthenticated visits to any app route redirect to `/login`.
+5. Greeting, bell, and pill search field all present and aligned.
+6. Exactly 4 quick-action tiles with the specified copy and Mist/card
    alternation.
-4. "Upcoming trip" row is asymmetric with a working gold progress ring whose
+7. "Upcoming trip" row is asymmetric with a working Pine progress ring whose
    percentage sits centered inside the stroke.
-5. Stat strip is one bordered box with 3 internal dividers.
-6. Preferences banner is cream with a right arrow that slides on hover.
-7. No raw hex or `text-white` in any component; dark mode renders correctly.
-8. Keyboard focus is visible on every interactive element.
+8. Stat strip is one bordered box with 3 internal dividers (2×2 below 768px).
+9. All amounts render as USD through the currency helper; no `₹` anywhere.
+10. No raw hex or `text-white` in any component except the Google mark; dark
+    mode renders correctly.
+11. Keyboard focus is visible on every interactive element.
+12. `tsc --noEmit` and `next build` both pass clean under strict mode.
+13. The app is installable: manifest resolves, icons load, no console errors.
