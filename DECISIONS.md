@@ -277,3 +277,17 @@ endpoint URLs remain unchanged, so the frontend does not require a migration.
 **Testing:** Supabase is injected with FastAPI dependency overrides. External
 providers remain mocked at the router boundary, preserving offline tests and
 making future agent/provider modules testable without consuming API credits.
+
+## 2026-08-09 — Group-trip workflow integration
+
+**Decision:** Integrate the `shwetanshu-group` workflow as a separate
+`/group-trips` router and dedicated frontend domain under `lib/group`.
+
+**Why:** The feature adds invitations, private surveys, generated itinerary
+contexts, and per-member plans without replacing the existing single-person
+`/trips` flow. Provider and Supabase dependencies remain shared through the
+modular FastAPI foundation.
+
+**Database:** `supabase_migration.sql` is retained for review and manual
+application. It is not applied automatically; its development-only disabled
+RLS settings must be replaced with authenticated policies before production.

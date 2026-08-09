@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from supabase import Client
 
 from api.dependencies import get_supabase
@@ -18,7 +18,7 @@ class GroupTripCreate(BaseModel):
     checkout: str
     organizer_email: str
     organizer_user_id: str | None = None
-    invited_emails: list[str] = []
+    invited_emails: list[str] = Field(default_factory=list)
 
 
 class SurveyUpsert(BaseModel):
@@ -33,7 +33,7 @@ class SurveyUpsert(BaseModel):
     schedule_note: str = ""
     budget_band: str = ""
     budget_flexibility: str = ""
-    spending_priorities: list[str] = []
+    spending_priorities: list[str] = Field(default_factory=list)
     accommodation_preference: str = ""
     room_preference: str = ""
     bathroom_preference: str = ""
@@ -46,11 +46,11 @@ class SurveyUpsert(BaseModel):
     group_style_preference: str = ""
     dietary_preferences: str = ""
     alcohol_preference: str = ""
-    accessibility_needs: list[str] = []
-    sensory_preferences: list[str] = []
-    interests: list[str] = []
+    accessibility_needs: list[str] = Field(default_factory=list)
+    sensory_preferences: list[str] = Field(default_factory=list)
+    interests: list[str] = Field(default_factory=list)
     must_do: str = ""
-    cannot_do: list[str] = []
+    cannot_do: list[str] = Field(default_factory=list)
     completed: bool = False
 
 

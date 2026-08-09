@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
+from api.dependencies import supabase  # noqa: E402, F401
 from api.routers import accommodations, auth, config, health, members, trips, weather  # noqa: E402
 from api.routers import group_trips  # noqa: E402
 

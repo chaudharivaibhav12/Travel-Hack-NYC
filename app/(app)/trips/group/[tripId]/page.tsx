@@ -126,11 +126,13 @@ export default function GroupDashboardPage() {
 
   useEffect(() => {
     setMounted(true);
-    const t = getTrip(tripId);
-    if (!t) { router.replace("/trips/group"); return; }
-    setTrip(t);
-    setStatuses(getSurveyStatuses(tripId));
     setPlans(getPlans(tripId));
+    void getGroupTripRemote(tripId)
+      .then(({ trip: remoteTrip, surveyStatuses }) => {
+        setTrip(remoteTrip);
+        setStatuses(surveyStatuses);
+      })
+      .catch(() => router.replace("/trips/group"));
   }, [tripId, router]);
 
   if (!mounted || !trip || !user) return null;
@@ -138,7 +140,7 @@ export default function GroupDashboardPage() {
   const isOrganizer = trip.organizerEmail === user.email;
   const allEmails = [trip.organizerEmail, ...trip.invitedEmails];
   const completedCount = allEmails.filter((e) => statuses[e] === "complete").length;
-  const myDone = isSurveyComplete(tripId, user.email);
+  const myDone = statuses[user.email] === "complete";
   const hasPlan = plans.length > 0;
   const lockedPlan = trip.lockedPlanId ? getPlan(tripId, trip.lockedPlanId) : null;
   const canGenerate = isOrganizer && completedCount >= Math.ceil(allEmails.length / 2);
