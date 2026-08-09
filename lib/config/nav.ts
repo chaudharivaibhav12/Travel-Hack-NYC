@@ -69,7 +69,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     shortLabel: "Group",
     href: "/trips/group",
     icon: Users,
-    built: false,
+    built: true,
     inTabBar: false,
   },
   {
