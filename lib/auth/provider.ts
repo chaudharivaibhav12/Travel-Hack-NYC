@@ -28,8 +28,14 @@ export type AuthResult =
   | { ok: true; user: AuthUser }
   | { ok: false; error: string };
 
+export type SignUpResult =
+  | { ok: true; status: "signed_in"; user: AuthUser }
+  | { ok: true; status: "confirmation_required"; email: string }
+  | { ok: false; error: string };
+
 export interface AuthProvider {
   signInWithPassword(identifier: string, password: string): Promise<AuthResult>;
+  signUpWithPassword(email: string, password: string): Promise<SignUpResult>;
   signInWithGoogle(): Promise<AuthResult>;
   signOut(): Promise<void>;
 }
@@ -79,6 +85,15 @@ class LocalAuthProvider implements AuthProvider {
     }
 
     return { ok: true, user: { ...DEMO_USER, method: "password" } };
+  }
+
+  async signUpWithPassword(): Promise<SignUpResult> {
+    await wait(SIMULATED_LATENCY_MS);
+    return {
+      ok: false,
+      error:
+        "Email sign-up is not configured. Add the team Supabase values to .env.local, then restart the app.",
+    };
   }
 
   async signInWithGoogle(): Promise<AuthResult> {
@@ -178,6 +193,45 @@ class SupabaseAuthProvider implements AuthProvider {
     } catch {
       // Network/infrastructure failure — §12 says degrade, don't break.
       return this.local.signInWithPassword(identifier, password);
+    }
+  }
+
+  async signUpWithPassword(
+    email: string,
+    password: string,
+  ): Promise<SignUpResult> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return this.local.signUpWithPassword();
+
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
+      });
+
+      if (error) return { ok: false, error: error.message };
+      if (data.session && data.user) {
+        return {
+          ok: true,
+          status: "signed_in",
+          user: toAuthUser(data.user, "password"),
+        };
+      }
+
+      return {
+        ok: true,
+        status: "confirmation_required",
+        email: normalizedEmail,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: "Could not create the account. Check your connection and try again.",
+      };
     }
   }
 

@@ -22,7 +22,8 @@ cp .env.example .env.local   # then fill in the two Supabase values
 npm run dev                  # http://localhost:3000
 ```
 
-Sign in with **`admin`** / **`admin123`**, or use the Google button (see below).
+Sign in with **`admin`** / **`admin123`**, use Google, or create an email and
+password account (see below).
 
 > **`.env.local` is required for Google sign-in and is not in the repo.** Ask
 > the team for `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
@@ -89,6 +90,7 @@ npm run build        # production build
 npm start            # serve it
 npx tsc --noEmit     # type check (strict, must stay clean)
 npx eslint .         # lint
+npm test             # frontend auth validation tests
 ```
 
 ---
@@ -120,6 +122,7 @@ Nothing else changes.
 | | |
 |---|---|
 | Password | `admin` (or `admin@sage.travel`) / `admin123`, or an existing Supabase email/password user |
+| Sign up | Email + password through Supabase; the current project requires clicking the confirmation email before the first sign-in |
 | Google | Real Supabase Google OAuth. Missing configuration and provider errors are shown on the login form. |
 | Session | Supabase persists and refreshes its session; a `sage_session` UI cookie lets the Next.js proxy render the correct shell. |
 | Route gating | `proxy.ts` redirects signed-out visitors to `/login` before React mounts, so the dashboard never flashes. Paths with a file extension are skipped so PWA assets stay reachable. |
