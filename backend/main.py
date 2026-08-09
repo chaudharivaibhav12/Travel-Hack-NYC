@@ -72,6 +72,8 @@ def verify_token(body: TokenRequest):
             "name": user.user.user_metadata.get("full_name"),
             "avatar": user.user.user_metadata.get("avatar_url"),
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))
 
