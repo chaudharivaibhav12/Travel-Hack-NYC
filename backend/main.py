@@ -117,28 +117,63 @@ class TripCreate(BaseModel):
     event_location: str
     lat: float
     lng: float
-    checkin: str    # YYYY-MM-DD
-    checkout: str   # YYYY-MM-DD
+    checkin: date
+    checkout: date
     user_id: str    # from Supabase auth
 
 
 @app.post("/trips")
 def create_trip(trip: TripCreate):
     """Create a new group trip. Returns a shareable trip ID."""
-    result = supabase.table("trips").insert({
-        "event_name": trip.event_name,
-        "event_location": trip.event_location,
-        "lat": trip.lat,
-        "lng": trip.lng,
-        "checkin": trip.checkin,
-        "checkout": trip.checkout,
-        "created_by": trip.user_id,
-    }).execute()
+    if trip.checkout <= trip.checkin:
+        raise HTTPException(status_code=422, detail="checkout must be after checkin")
+
+    try:
+        result = supabase.table("trips").insert({
+            "event_name": trip.event_name,
+            "event_location": trip.event_location,
+            "lat": trip.lat,
+            "lng": trip.lng,
+            "checkin": trip.checkin.isoformat(),
+            "checkout": trip.checkout.isoformat(),
+            "created_by": trip.user_id,
+        }).execute()
+    except Exception as error:
+        # Surface the real Postgres/Supabase error (e.g. "invalid input syntax
+        # for type uuid") instead of an opaque 500 with no body — the frontend
+        # proxy at app/api/trips/route.ts reads `detail` and shows it verbatim.
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create trip")
 
     return {"trip_id": result.data[0]["id"], "trip": result.data[0]}
+
+
+@app.get("/trips")
+def list_trips(user_id: str = Query(...)):
+    """
+    List trips a user created, most recent first. Powers the My Trips screen.
+    (Trips someone only joined as a member, rather than created, aren't
+    included yet — that needs a membership-based query once /members grows
+    beyond quick-create.)
+    """
+    try:
+        result = (
+            supabase.table("trips")
+            .select("*")
+            .eq("created_by", user_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+    except Exception:
+        # A malformed user_id (e.g. the "demo-user" fallback, not a real
+        # Supabase UUID) can never match a real trip — treat it as "no trips"
+        # rather than 500ing. Matches how the frontend already degrades a
+        # failed fetch to an empty list (lib/server/trips.ts).
+        return {"trips": []}
+
+    return {"trips": result.data or []}
 
 
 @app.get("/trips/{trip_id}")

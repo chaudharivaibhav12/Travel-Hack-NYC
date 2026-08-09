@@ -50,6 +50,36 @@ appropriate for testing but should be replaced with custom SMTP for production.
 **Validation:** `npm test`, `npm run lint`, `npm run build`, and a manual signup
 using a fresh email followed by its confirmation link.
 
+## 2026-08-09 — Integrate PlanTrip without removing demo resilience
+
+**Context:** `origin/PlanTrip` added real trip creation, geocoding, Supabase
+persistence, trip listing, and trip details. It diverged before Stay22, email
+signup, and profile work landed on `main`.
+
+**Decision:** Merge PlanTrip while keeping `backend/.env.example`, standardize
+all FastAPI calls on port `8001`, derive `created_by` from the server-readable
+session cookie rather than a request body field, and retain the seeded itinerary
+as a visible demo preview. The explicit demo user receives the seeded trip
+instead of attempting an invalid UUID insert.
+
+**Why:** Real users should create and retrieve Supabase trips, while the
+`admin` / `admin123` recovery path must remain functional if external services
+fail. A single backend port prevents weather and trips from requiring two local
+FastAPI processes.
+
+**Alternatives:** Deleting the itinerary preview was rejected because no
+itinerary generator exists yet. Trusting a browser-provided `user_id` was
+rejected because the server already has an authenticated UI session.
+
+**Consequences:** The `sage_session` cookie remains demo-grade and unsigned; a
+production version must verify a Supabase access token server-side. Real trip
+creation requires FastAPI on port `8001` and the Supabase `trips` table.
+
+**Validation:** Frontend route tests cover authentication, field validation,
+geocoding failure, FastAPI outage, and server-derived ownership. Backend tests
+cover date validation, inserts, listing, and provider failures. Run the complete
+frontend and backend suites plus a production build before merging.
+
 ## Stay22 Integration — feat/stay22-integration
 
 ### Decision: reuse `shwetanshu_api_tests` implementation
