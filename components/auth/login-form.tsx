@@ -16,7 +16,9 @@ export function LoginForm() {
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    searchParams.get("error_description")?.replaceAll("+", " ") ?? null,
+  );
   const [pending, setPending] = useState<Pending>("none");
 
   const destination = searchParams.get("next") ?? "/";

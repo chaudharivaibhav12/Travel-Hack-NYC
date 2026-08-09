@@ -26,10 +26,37 @@ Sign in with **`admin`** / **`admin123`**, or use the Google button (see below).
 
 > **`.env.local` is required for Google sign-in and is not in the repo.** Ask
 > the team for `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-> Without them the app still runs, but it silently falls back to the demo user
-> and the Google button will not work — by design (MasterPrompt §12), so it
-> fails quietly rather than breaking the screen. `admin`/`admin123` always
-> works, with or without credentials.
+> Without them the app still runs and `admin`/`admin123` still works, but the
+> Google button shows a configuration error instead of pretending that the
+> seeded demo user completed Google OAuth. Restart `npm run dev` after creating
+> or changing `.env.local`; Next.js reads these values when the server starts.
+
+### One-time Google OAuth setup
+
+Every developer needs the same two public Supabase values in `.env.local`.
+Share them through the team password manager or another private team channel;
+never commit `.env.local`.
+
+In **Supabase Dashboard → Authentication → URL Configuration**:
+
+```text
+Site URL:       http://localhost:3000
+Redirect URLs: http://localhost:3000/login
+               http://localhost:3000/**
+```
+
+Add the deployed app's exact `/login` URL before testing a hosted build.
+
+In the Google Cloud web OAuth client:
+
+```text
+Authorized JavaScript origin: http://localhost:3000
+Authorized redirect URI:      https://<project-ref>.supabase.co/auth/v1/callback
+```
+
+Use the callback URL shown on Supabase's Google provider page. If the Google
+app audience is Internal or Testing, allow each teammate's Google account or
+change the audience appropriately.
 
 ### Backend (only needed for weather)
 
@@ -92,9 +119,9 @@ Nothing else changes.
 
 | | |
 |---|---|
-| Password | `admin` (or `admin@sage.travel`) / `admin123` |
-| Google | No OAuth client configured yet, so it signs in as the seeded demo user — the `MasterPrompt.md` §12 fallback. Swap in real OAuth inside `signInWithGoogle`. |
-| Session | A `sage_session` cookie. Demo-grade, not a security boundary; Supabase replaces it with a signed JWT. |
+| Password | `admin` (or `admin@sage.travel`) / `admin123`, or an existing Supabase email/password user |
+| Google | Real Supabase Google OAuth. Missing configuration and provider errors are shown on the login form. |
+| Session | Supabase persists and refreshes its session; a `sage_session` UI cookie lets the Next.js proxy render the correct shell. |
 | Route gating | `proxy.ts` redirects signed-out visitors to `/login` before React mounts, so the dashboard never flashes. Paths with a file extension are skipped so PWA assets stay reachable. |
 
 ---

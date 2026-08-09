@@ -183,7 +183,13 @@ class SupabaseAuthProvider implements AuthProvider {
 
   async signInWithGoogle(): Promise<AuthResult> {
     const supabase = getSupabaseClient();
-    if (!supabase) return this.local.signInWithGoogle();
+    if (!supabase) {
+      return {
+        ok: false,
+        error:
+          "Google sign-in is not configured. Add the team Supabase URL and anon key to .env.local, then restart the app.",
+      };
+    }
 
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -202,13 +208,16 @@ class SupabaseAuthProvider implements AuthProvider {
         },
       });
 
-      if (error) return this.local.signInWithGoogle();
+      if (error) return { ok: false, error: error.message };
 
       // The browser is navigating to Google. Nothing resolves after this —
       // AuthProviderClient picks the session up when we land back on /login.
       return new Promise<AuthResult>(() => {});
     } catch {
-      return this.local.signInWithGoogle();
+      return {
+        ok: false,
+        error: "Could not start Google sign-in. Check your connection and OAuth configuration.",
+      };
     }
   }
 
