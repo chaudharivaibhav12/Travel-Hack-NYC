@@ -271,7 +271,7 @@ export default function NewGroupTripPage() {
 
           {lookupState === "not-found" && (
             <p className="mt-2 text-[12px] text-amber-600">
-              No account found. They&rsquo;ll see the trip when they join the platform.
+              No searchable profile found. Demo access will still be granted to this exact email.
             </p>
           )}
           {lookupState === "found" && (
@@ -299,7 +299,7 @@ export default function NewGroupTripPage() {
                       </span>
                       <span className="block text-[12px] leading-[16px] text-muted-foreground">
                         {m.email}
-                        {m.status === "not-found" && " · invite pending"}
+                        {m.status === "not-found" && " · demo access added"}
                       </span>
                     </span>
                   </span>
