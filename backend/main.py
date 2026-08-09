@@ -9,6 +9,7 @@ import os
 from dotenv import load_dotenv
 
 from services.weather import WeatherServiceError, fetch_weather
+from services.stay22 import Stay22ServiceError, search_accommodations, unavailable_response
 
 load_dotenv()
 
@@ -250,6 +251,53 @@ def get_weather(
         return fetch_weather(latitude, longitude, start_date, end_date)
     except WeatherServiceError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
+
+
+# ─── Accommodations ──────────────────────────────────────────────────────────
+
+@app.get("/accommodations")
+def get_accommodations(
+    address: str = Query(default=None),
+    lat: float = Query(default=None, ge=-90, le=90),
+    lng: float = Query(default=None, ge=-180, le=180),
+    checkin: date = Query(),
+    checkout: date = Query(),
+    guests: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+    min_price: float = Query(default=None, ge=0),
+    max_price: float = Query(default=None, ge=0),
+):
+    """Search accommodations via Stay22.
+
+    Returns a normalized list of stays with prices across Booking.com,
+    VRBO, Expedia, and Hotels.com. On provider failure or timeout, returns
+    an empty unavailable response so the frontend can hide the panel gracefully.
+    """
+    if address is None and (lat is None or lng is None):
+        raise HTTPException(
+            status_code=422,
+            detail="Provide either address or both lat and lng",
+        )
+    if checkout <= checkin:
+        raise HTTPException(
+            status_code=422,
+            detail="checkout must be after checkin",
+        )
+
+    try:
+        return search_accommodations(
+            address=address,
+            lat=lat,
+            lng=lng,
+            checkin=checkin,
+            checkout=checkout,
+            guests=guests,
+            page_size=page_size,
+            min_price=min_price,
+            max_price=max_price,
+        )
+    except Stay22ServiceError:
+        return unavailable_response()
 
 
 # ─── Health check ─────────────────────────────────────────────────────────────
