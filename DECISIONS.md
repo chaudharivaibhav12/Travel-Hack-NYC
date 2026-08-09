@@ -347,3 +347,8 @@ the invitation table gives travelers an explicit accept/decline action.
 current hackathon backend. Before production, enable RLS and require authenticated
 users to search profiles, read their own invitations, and update only their own
 pending invitation records.
+
+**Demo compatibility:** Until the migration is applied, missing profile and
+invitation tables do not block the demo. Search returns no registered matches,
+invitation writes are best-effort, and `invited_emails` continues to grant trip
+access as the legacy automatically-accepted behavior.

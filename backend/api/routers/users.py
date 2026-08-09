@@ -12,10 +12,13 @@ def search_users(
     supabase: Client = Depends(get_supabase),
 ):
     query = email.strip().lower()
-    result = (
-        supabase.table("profiles").select("user_id,email,display_name,avatar_url")
-        .ilike("email", f"{query}%").limit(5).execute()
-    )
+    try:
+        result = (
+            supabase.table("profiles").select("user_id,email,display_name,avatar_url")
+            .ilike("email", f"{query}%").limit(5).execute()
+        )
+    except Exception:
+        return {"users": [], "demo_mode": True}
     return {
         "users": [
             {

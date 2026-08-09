@@ -25,7 +25,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             // Page padding per §4: 20px mobile, 32px tablet, 44px desktop.
             "px-5 pt-6 md:px-8 md:pt-[30px] xl:px-11",
             // Bottom padding clears the tab bar on mobile; §4's 48px on desktop.
-            "pb-[calc(60px+env(safe-area-inset-bottom)+24px)] md:pb-12",
+            "app-content-bottom",
           )}
         >
           {children}

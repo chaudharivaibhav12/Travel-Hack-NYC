@@ -93,25 +93,32 @@ def create_group_trip(body: GroupTripCreate, supabase: Client = Depends(get_supa
             "status": "pending",
         } for email in dict.fromkeys(body.invited_emails) if email.lower() != body.organizer_email.lower()]
         if invitations:
-            supabase.table("group_trip_invitations").upsert(
-                invitations, on_conflict="trip_id,invitee_email"
-            ).execute()
+            try:
+                supabase.table("group_trip_invitations").upsert(
+                    invitations, on_conflict="trip_id,invitee_email"
+                ).execute()
+            except Exception:
+                pass
     return {"trip_id": trip["id"], "trip": trip}
 
 
 @router.get("")
 def list_group_trips(email: str = Query(...), supabase: Client = Depends(get_supabase)):
     as_organizer = supabase.table("group_trips").select("*").eq("organizer_email", email).execute()
-    accepted = (
-        supabase.table("group_trip_invitations").select("trip_id")
-        .eq("invitee_email", email.lower()).eq("status", "accepted").execute()
-    )
-    accepted_ids = [row["trip_id"] for row in (accepted.data or [])]
-    as_invited_data = []
-    for trip_id in accepted_ids:
-        row = supabase.table("group_trips").select("*").eq("id", trip_id).single().execute()
-        if row.data:
-            as_invited_data.append(row.data)
+    try:
+        accepted = (
+            supabase.table("group_trip_invitations").select("trip_id")
+            .eq("invitee_email", email.lower()).eq("status", "accepted").execute()
+        )
+        accepted_ids = [row["trip_id"] for row in (accepted.data or [])]
+        as_invited_data = []
+        for trip_id in accepted_ids:
+            row = supabase.table("group_trips").select("*").eq("id", trip_id).single().execute()
+            if row.data:
+                as_invited_data.append(row.data)
+    except Exception:
+        legacy = supabase.table("group_trips").select("*").contains("invited_emails", [email]).execute()
+        as_invited_data = legacy.data or []
 
     seen, trips = set(), []
     for t in (as_organizer.data or []) + as_invited_data:
@@ -136,10 +143,13 @@ def list_group_trips(email: str = Query(...), supabase: Client = Depends(get_sup
 
 @router.get("/invitations/pending")
 def list_pending_invitations(email: str = Query(...), supabase: Client = Depends(get_supabase)):
-    result = (
-        supabase.table("group_trip_invitations").select("*")
-        .eq("invitee_email", email.lower()).eq("status", "pending").execute()
-    )
+    try:
+        result = (
+            supabase.table("group_trip_invitations").select("*")
+            .eq("invitee_email", email.lower()).eq("status", "pending").execute()
+        )
+    except Exception:
+        return {"invitations": [], "demo_mode": True}
     invitations = []
     for invitation in result.data or []:
         trip = supabase.table("group_trips").select("*").eq("id", invitation["trip_id"]).single().execute()
