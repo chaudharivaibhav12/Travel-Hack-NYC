@@ -60,25 +60,50 @@ def main() -> None:
         fail(f"Auth health check returned HTTP {resp.status_code}: {resp.text}")
     print(f"  [ok] project reachable, GoTrue health: {resp.json()}")
 
-    # 2. Google OAuth provider enabled — same call /auth/google makes
-    from supabase import create_client
+    # 2. Which providers are actually enabled?
+    #
+    # NOTE: supabase-py's sign_in_with_oauth() builds the authorize URL purely
+    # client-side — it does NOT contact the server, so a URL coming back is no
+    # evidence the provider is enabled. We must ask the server directly.
+    settings = httpx.get(
+        f"{SUPABASE_URL}/auth/v1/settings",
+        headers={"apikey": SUPABASE_ANON_KEY},
+        timeout=10,
+    ).json()
+    external = settings.get("external", {})
+    enabled = sorted(k for k, v in external.items() if v)
+    print(f"  [ok] enabled auth providers: {', '.join(enabled) or '(none)'}")
 
-    client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-    try:
-        oauth_resp = client.auth.sign_in_with_oauth({
-            "provider": "google",
-            "options": {"redirect_to": os.getenv("REDIRECT_URL", "http://localhost:5173/auth/callback")},
-        })
-    except Exception as e:
-        fail(f"sign_in_with_oauth(google) raised: {e}")
+    # 3. Confirm Google specifically, by actually hitting the authorize endpoint
+    redirect_to = os.getenv("REDIRECT_URL", "http://localhost:5173/auth/callback")
+    probe = httpx.get(
+        f"{SUPABASE_URL}/auth/v1/authorize",
+        params={"provider": "google", "redirect_to": redirect_to},
+        follow_redirects=False,
+        timeout=10,
+    )
+    if probe.status_code == 400:
+        print(f"  [WARN] Google OAuth is NOT enabled: {probe.json().get('msg')}")
+        print("         Enable it at: Supabase dashboard -> Authentication -> Providers -> Google")
+    elif probe.is_redirect and "google.com" in probe.headers.get("location", ""):
+        print("  [ok] Google OAuth enabled — authorize redirects to Google")
+    else:
+        print(f"  [WARN] Unexpected authorize response: HTTP {probe.status_code}")
 
-    url = getattr(oauth_resp, "url", None)
-    if not url or "provider=google" not in url:
-        fail(f"Did not get a valid Google authorize URL back. Got: {url!r}")
+    # 4. Do the app's tables exist?
+    for table in ("trips", "members"):
+        r = httpx.get(
+            f"{SUPABASE_URL}/rest/v1/{table}",
+            params={"select": "*", "limit": 1},
+            headers={"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"},
+            timeout=10,
+        )
+        if r.status_code == 200:
+            print(f"  [ok] table '{table}' exists and is readable")
+        else:
+            print(f"  [WARN] table '{table}': HTTP {r.status_code} — {r.text[:120]}")
 
-    print(f"  [ok] Google OAuth authorize URL: {url}")
-    print("\nAll checks passed. /auth/google is correctly wired to this Supabase project.")
-    print("(Full end-to-end login still requires a human to complete Google's consent screen in a browser.)")
+    print("\nReachability check done. Review any [WARN] lines above.")
 
 
 if __name__ == "__main__":

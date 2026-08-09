@@ -6,6 +6,25 @@ http://localhost:8000
 ```
 > When deployed, replace with the production URL.
 
+## Weather Forecast
+
+Open-Meteo is available through the backend so the frontend does not need to
+know the provider SDK or response format.
+
+```http
+GET /weather?latitude=52.52&longitude=13.41&start_date=2026-08-09&end_date=2026-08-12
+```
+
+The response contains normalized `location`, `hourly`, and `daily` arrays.
+Requests are retried three times and cached in memory for one hour. Date ranges
+are limited to 16 days.
+
+Run a live provider check with:
+
+```bash
+python scripts/check_openmeteo.py
+```
+
 ---
 
 ## Auth Flow Overview

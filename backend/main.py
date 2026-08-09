@@ -1,10 +1,14 @@
-from fastapi import FastAPI, HTTPException, Depends
+from datetime import date
+
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
+
+from services.weather import WeatherServiceError, fetch_weather
 
 load_dotenv()
 
@@ -22,6 +26,23 @@ supabase: Client = create_client(
     os.getenv("SUPABASE_URL"),
     os.getenv("SUPABASE_ANON_KEY"),
 )
+
+
+# ─── Config ──────────────────────────────────────────────────────────────────
+
+@app.get("/config")
+def get_config():
+    """
+    Public Supabase config for the frontend.
+
+    The anon key is designed to be public (it ships in frontend bundles); the
+    real security boundary is Row Level Security on each table. Serving it from
+    here means the frontend has no hardcoded credentials of its own.
+    """
+    return {
+        "supabase_url": os.getenv("SUPABASE_URL"),
+        "supabase_anon_key": os.getenv("SUPABASE_ANON_KEY"),
+    }
 
 
 # ─── Auth ────────────────────────────────────────────────────────────────────
@@ -208,6 +229,27 @@ def get_consensus(trip_id: str):
         "origins": origins,
         "vibe_params_per_member": all_vibe_params,  # Claude on frontend merges these
     }
+
+
+# ─── Weather ─────────────────────────────────────────────────────────────────
+
+@app.get("/weather")
+def get_weather(
+    latitude: float = Query(ge=-90, le=90),
+    longitude: float = Query(ge=-180, le=180),
+    start_date: date = Query(),
+    end_date: date = Query(),
+):
+    """Return an Open-Meteo forecast for a trip's coordinates and dates."""
+    if end_date < start_date:
+        raise HTTPException(status_code=422, detail="end_date must be on or after start_date")
+    if (end_date - start_date).days > 15:
+        raise HTTPException(status_code=422, detail="Weather requests are limited to 16 days")
+
+    try:
+        return fetch_weather(latitude, longitude, start_date, end_date)
+    except WeatherServiceError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
 
 
 # ─── Health check ─────────────────────────────────────────────────────────────

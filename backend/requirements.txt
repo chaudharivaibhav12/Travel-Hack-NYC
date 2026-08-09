@@ -3,3 +3,7 @@ uvicorn
 supabase
 python-dotenv
 pydantic
+openmeteo-requests
+requests-cache
+retry-requests
+numpy
