@@ -166,6 +166,11 @@ def _chain(mock_supabase, table_name):
     return table_mock
 
 
+def _chain_multi(mock_supabase, table_mocks: dict):
+    """Like _chain but configures more than one table name at once."""
+    mock_supabase.table.side_effect = lambda name: table_mocks.get(name, MagicMock())
+
+
 def test_create_trip_success(client, mock_supabase):
     table_mock = _chain(mock_supabase, "trips")
     table_mock.insert.return_value.execute.return_value = SimpleNamespace(
@@ -237,6 +242,83 @@ def test_create_trip_supabase_exception_returns_400_with_detail(client, mock_sup
 
     assert resp.status_code == 400
     assert "uuid" in resp.json()["detail"]
+
+
+def test_create_trip_auto_joins_creator_as_member(client, mock_supabase):
+    trips_mock = MagicMock()
+    trips_mock.insert.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "trip-1", "event_name": "Cabo Bachelor Party"}]
+    )
+    members_mock = MagicMock()
+    members_mock.insert.return_value.execute.return_value = SimpleNamespace(data=[{"id": "member-1"}])
+    _chain_multi(mock_supabase, {"trips": trips_mock, "members": members_mock})
+
+    resp = client.post("/trips", json={
+        "event_name": "Cabo Bachelor Party",
+        "event_location": "Cabo San Lucas",
+        "lat": 22.89,
+        "lng": -109.91,
+        "checkin": "2026-09-01",
+        "checkout": "2026-09-05",
+        "user_id": "user-123",
+        "user_name": "Jane Doe",
+        "user_email": "jane@example.com",
+        "user_avatar": "https://avatar.example/jane.png",
+    })
+
+    assert resp.status_code == 200
+    members_mock.insert.assert_called_once_with({
+        "trip_id": "trip-1",
+        "user_id": "user-123",
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "avatar": "https://avatar.example/jane.png",
+    })
+
+
+def test_create_trip_defaults_member_name_when_missing(client, mock_supabase):
+    trips_mock = MagicMock()
+    trips_mock.insert.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "trip-1", "event_name": "Cabo Bachelor Party"}]
+    )
+    members_mock = MagicMock()
+    members_mock.insert.return_value.execute.return_value = SimpleNamespace(data=[{"id": "member-1"}])
+    _chain_multi(mock_supabase, {"trips": trips_mock, "members": members_mock})
+
+    client.post("/trips", json={
+        "event_name": "Cabo Bachelor Party",
+        "event_location": "Cabo San Lucas",
+        "lat": 22.89,
+        "lng": -109.91,
+        "checkin": "2026-09-01",
+        "checkout": "2026-09-05",
+        "user_id": "user-123",
+    })
+
+    assert members_mock.insert.call_args[0][0]["name"] == "Trip creator"
+
+
+def test_create_trip_survives_member_insert_failure(client, mock_supabase):
+    trips_mock = MagicMock()
+    trips_mock.insert.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "trip-1", "event_name": "Cabo Bachelor Party"}]
+    )
+    members_mock = MagicMock()
+    members_mock.insert.return_value.execute.side_effect = Exception("members schema not migrated")
+    _chain_multi(mock_supabase, {"trips": trips_mock, "members": members_mock})
+
+    resp = client.post("/trips", json={
+        "event_name": "Cabo Bachelor Party",
+        "event_location": "Cabo San Lucas",
+        "lat": 22.89,
+        "lng": -109.91,
+        "checkin": "2026-09-01",
+        "checkout": "2026-09-05",
+        "user_id": "user-123",
+    })
+
+    assert resp.status_code == 200
+    assert resp.json()["trip_id"] == "trip-1"
 
 
 def test_list_trips_returns_trips_for_user(client, mock_supabase):
@@ -335,3 +417,143 @@ def test_consensus_falls_back_to_average_when_no_overlap(client, mock_supabase):
     body = resp.json()
     # no overlap (900 > 200) -> falls back to averages: min=(100+900)/2=500, max=(200+1200)/2=700
     assert body["budget_consensus"] == {"min": 500, "max": 700}
+
+
+# ─── /preferences/* ────────────────────────────────────────────────────────
+
+def test_save_travel_preferences_upserts(client, mock_supabase):
+    table_mock = _chain(mock_supabase, "preferences_travel")
+    table_mock.upsert.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "pref-1", "member_id": "member-1", "trip_id": "trip-1", "origin_airport": "JFK"}]
+    )
+
+    resp = client.post("/preferences/travel", json={
+        "member_id": "member-1",
+        "trip_id": "trip-1",
+        "origin_city": "New York",
+        "origin_airport": "JFK",
+        "departure_date": "2026-09-01",
+        "return_date": "2026-09-05",
+        "flight_budget": 500,
+        "departure_time_pref": "morning",
+        "date_flexibility": "exact",
+    })
+
+    assert resp.status_code == 200
+    assert resp.json()["id"] == "pref-1"
+    table_mock.upsert.assert_called_once()
+    assert table_mock.upsert.call_args.kwargs["on_conflict"] == "member_id,trip_id"
+
+
+def test_save_stay_preferences_upserts(client, mock_supabase):
+    table_mock = _chain(mock_supabase, "preferences_stay")
+    table_mock.upsert.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "pref-1", "member_id": "member-1", "trip_id": "trip-1"}]
+    )
+
+    resp = client.post("/preferences/stay", json={
+        "member_id": "member-1",
+        "trip_id": "trip-1",
+        "budget_min": 100,
+        "budget_max": 300,
+        "property_types": ["hotel", "apartment"],
+        "vibes": ["modern"],
+        "needs": ["free_cancellation"],
+    })
+
+    assert resp.status_code == 200
+    assert resp.json()["id"] == "pref-1"
+
+
+def test_save_food_preferences_upserts(client, mock_supabase):
+    table_mock = _chain(mock_supabase, "preferences_food")
+    table_mock.upsert.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "pref-1", "member_id": "member-1", "trip_id": "trip-1"}]
+    )
+
+    resp = client.post("/preferences/food", json={
+        "member_id": "member-1",
+        "trip_id": "trip-1",
+        "cuisines": ["japanese", "italian"],
+        "dietary": ["vegetarian"],
+        "meal_budget": "mid",
+    })
+
+    assert resp.status_code == 200
+    assert resp.json()["id"] == "pref-1"
+
+
+def test_save_activities_preferences_upserts(client, mock_supabase):
+    table_mock = _chain(mock_supabase, "preferences_activities")
+    table_mock.upsert.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "pref-1", "member_id": "member-1", "trip_id": "trip-1"}]
+    )
+
+    resp = client.post("/preferences/activities", json={
+        "member_id": "member-1",
+        "trip_id": "trip-1",
+        "interests": ["markets", "museums"],
+        "pace": "moderate",
+        "must_sees": "teamlab, shibuya crossing",
+    })
+
+    assert resp.status_code == 200
+    assert resp.json()["id"] == "pref-1"
+
+
+def test_save_preferences_supabase_exception_returns_400(client, mock_supabase):
+    table_mock = _chain(mock_supabase, "preferences_travel")
+    table_mock.upsert.return_value.execute.side_effect = Exception("constraint violation")
+
+    resp = client.post("/preferences/travel", json={
+        "member_id": "member-1",
+        "trip_id": "trip-1",
+        "origin_city": "New York",
+        "origin_airport": "JFK",
+        "departure_date": "2026-09-01",
+        "return_date": "2026-09-05",
+        "flight_budget": 500,
+        "departure_time_pref": "morning",
+        "date_flexibility": "exact",
+    })
+
+    assert resp.status_code == 400
+    assert "constraint violation" in resp.json()["detail"]
+
+
+def test_get_member_preferences_returns_all_four_categories(client, mock_supabase):
+    def make_table(data):
+        table_mock = MagicMock()
+        table_mock.select.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+            data=data
+        )
+        return table_mock
+
+    _chain_multi(mock_supabase, {
+        "preferences_travel": make_table([{"id": "t-1", "origin_airport": "JFK"}]),
+        "preferences_stay": make_table([]),
+        "preferences_food": make_table([{"id": "f-1", "meal_budget": "mid"}]),
+        "preferences_activities": make_table([]),
+    })
+
+    resp = client.get("/preferences/trip-1/member-1")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["travel"] == {"id": "t-1", "origin_airport": "JFK"}
+    assert body["stay"] is None
+    assert body["food"] == {"id": "f-1", "meal_budget": "mid"}
+    assert body["activities"] is None
+
+
+def test_get_member_preferences_degrades_to_null_on_exception(client, mock_supabase):
+    table_mock = MagicMock()
+    table_mock.select.return_value.eq.return_value.eq.return_value.execute.side_effect = Exception(
+        "table does not exist"
+    )
+    mock_supabase.table.side_effect = lambda name: table_mock
+
+    resp = client.get("/preferences/trip-1/member-1")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"travel": None, "stay": None, "food": None, "activities": None}

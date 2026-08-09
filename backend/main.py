@@ -120,6 +120,11 @@ class TripCreate(BaseModel):
     checkin: date
     checkout: date
     user_id: str    # from Supabase auth
+    # Optional: lets create_trip auto-join the creator as the trip's first
+    # member without a second round trip. Absent for older callers.
+    user_name: str | None = None
+    user_email: str | None = None
+    user_avatar: str | None = None
 
 
 @app.post("/trips")
@@ -147,7 +152,26 @@ def create_trip(trip: TripCreate):
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create trip")
 
-    return {"trip_id": result.data[0]["id"], "trip": result.data[0]}
+    new_trip = result.data[0]
+
+    # Auto-join the creator as the trip's first member. Best-effort: a trip
+    # that exists but has no member row yet is recoverable (join manually via
+    # /members); a trip that silently never got created is not. This also
+    # means a stale DB (members table not yet migrated per
+    # backend/sql/002_preferences.sql) degrades to "0 members" instead of
+    # failing the whole request.
+    try:
+        supabase.table("members").insert({
+            "trip_id": new_trip["id"],
+            "user_id": trip.user_id,
+            "name": trip.user_name or "Trip creator",
+            "email": trip.user_email,
+            "avatar": trip.user_avatar,
+        }).execute()
+    except Exception:
+        pass
+
+    return {"trip_id": new_trip["id"], "trip": new_trip}
 
 
 @app.get("/trips")
@@ -264,6 +288,112 @@ def get_consensus(trip_id: str):
         },
         "origins": origins,
         "vibe_params_per_member": all_vibe_params,  # Claude on frontend merges these
+    }
+
+
+# ─── Preferences ─────────────────────────────────────────────────────────────
+# One row per member per trip per category (backend/sql/002_preferences.sql).
+# POST is an upsert — fill in once, come back and edit, same row — keyed on
+# the (member_id, trip_id) unique constraint each table carries.
+
+class PreferencesTravel(BaseModel):
+    member_id: str
+    trip_id: str
+    origin_city: str
+    origin_airport: str          # 3-letter IATA code, e.g. "JFK"
+    departure_date: date
+    return_date: date
+    flight_budget: int
+    departure_time_pref: str     # 'any' | 'morning' | 'afternoon' | 'evening'
+    date_flexibility: str        # 'exact' | '1day' | '3days' | 'flexible'
+
+
+class PreferencesStay(BaseModel):
+    member_id: str
+    trip_id: str
+    budget_min: int
+    budget_max: int
+    property_types: list[str]
+    vibes: list[str]
+    needs: list[str]
+
+
+class PreferencesFood(BaseModel):
+    member_id: str
+    trip_id: str
+    cuisines: list[str]
+    dietary: list[str]
+    meal_budget: str             # 'budget' | 'mid' | 'splurge'
+
+
+class PreferencesActivities(BaseModel):
+    member_id: str
+    trip_id: str
+    interests: list[str]
+    pace: str                    # 'relaxed' | 'moderate' | 'packed'
+    must_sees: str                # free text
+
+
+def _upsert_preferences(table: str, payload: dict) -> dict:
+    try:
+        result = (
+            supabase.table(table)
+            .upsert(payload, on_conflict="member_id,trip_id")
+            .execute()
+        )
+    except Exception as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    if not result.data:
+        raise HTTPException(status_code=500, detail=f"Failed to save {table}")
+    return result.data[0]
+
+
+@app.post("/preferences/travel")
+def save_travel_preferences(prefs: PreferencesTravel):
+    return _upsert_preferences("preferences_travel", prefs.model_dump(mode="json"))
+
+
+@app.post("/preferences/stay")
+def save_stay_preferences(prefs: PreferencesStay):
+    return _upsert_preferences("preferences_stay", prefs.model_dump(mode="json"))
+
+
+@app.post("/preferences/food")
+def save_food_preferences(prefs: PreferencesFood):
+    return _upsert_preferences("preferences_food", prefs.model_dump(mode="json"))
+
+
+@app.post("/preferences/activities")
+def save_activities_preferences(prefs: PreferencesActivities):
+    return _upsert_preferences("preferences_activities", prefs.model_dump(mode="json"))
+
+
+@app.get("/preferences/{trip_id}/{member_id}")
+def get_member_preferences(trip_id: str, member_id: str):
+    """
+    All four preference rows for one member on one trip — null for any
+    category not filled in yet. Powers the wizard's pre-fill and the trip
+    page's completion checkmarks.
+    """
+    def _one(table: str):
+        try:
+            result = (
+                supabase.table(table)
+                .select("*")
+                .eq("trip_id", trip_id)
+                .eq("member_id", member_id)
+                .execute()
+            )
+        except Exception:
+            return None
+        return result.data[0] if result.data else None
+
+    return {
+        "travel": _one("preferences_travel"),
+        "stay": _one("preferences_stay"),
+        "food": _one("preferences_food"),
+        "activities": _one("preferences_activities"),
     }
 
 

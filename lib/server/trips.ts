@@ -5,10 +5,7 @@
  * browser, per MasterPrompt §2.9 (service URLs stay server-side).
  */
 
-const API_BASE =
-  process.env.API_BASE ??
-  process.env.WEATHER_API_BASE ??
-  "http://127.0.0.1:8001";
+import { API_BASE } from "@/lib/server/api-base";
 
 export interface Trip {
   id: string;
@@ -25,6 +22,7 @@ export interface Trip {
 export interface Member {
   id: string;
   trip_id: string;
+  user_id: string;
   name: string;
   [key: string]: unknown;
 }
