@@ -305,3 +305,30 @@ deterministic single-trip plan. Existing endpoint URLs remain compatible.
 **Database:** The preference SQL files are included but not automatically
 applied. Their development-only disabled RLS state requires secure policies
 before production deployment.
+
+## 2026-08-09 — Private itinerary generation
+
+**Decision:** Add an explicit `POST /trips/{trip_id}/itinerary` workflow backed
+by Claude, rather than generating during the existing read-only plan request.
+
+**Why:** `GET /trips/{trip_id}/plan` remains deterministic and safe to refresh.
+Generation happens only after all four preference categories are complete.
+Claude receives structured trip, preference, and Stay22 data and must return a
+validated JSON itinerary; it cannot invent live prices, availability, or links.
+
+**Resilience:** Provider errors use a deterministic preference-based fallback.
+Saving to `trip_itineraries` is best-effort so generation remains demoable until
+`backend/sql/004_trip_itineraries.sql` is applied.
+
+**Testing:** Claude is mocked at the router boundary. Tests never consume API
+credits, and separately cover incomplete preferences and fallback date coverage.
+
+## 2026-08-09 — Cross-machine group plan generation
+
+**Decision:** Keep the deterministic group planning engine, but feed it completed
+surveys from FastAPI instead of browser `localStorage`. Persist the resulting plan
+set for every member and hydrate it when the plans screen opens.
+
+**Why:** Local-only generation excluded teammates who completed surveys on other
+machines. Reusing the existing engine avoids a risky rewrite while making the
+create → survey → generate → review handoff collaborative.

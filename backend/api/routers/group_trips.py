@@ -59,6 +59,10 @@ class ItinerarySave(BaseModel):
     content: dict
 
 
+class GroupTripUpdate(BaseModel):
+    status: str
+
+
 # ─── Trip CRUD ────────────────────────────────────────────────────────────────
 
 @router.post("")
@@ -102,6 +106,17 @@ def list_group_trips(email: str = Query(...), supabase: Client = Depends(get_sup
         }
 
     return {"trips": trips}
+
+
+@router.patch("/{trip_id}")
+def update_group_trip(trip_id: str, body: GroupTripUpdate, supabase: Client = Depends(get_supabase)):
+    allowed_statuses = {"setup", "survey-open", "generating", "reviewing", "locked"}
+    if body.status not in allowed_statuses:
+        raise HTTPException(status_code=422, detail="Invalid group trip status")
+    result = supabase.table("group_trips").update({"status": body.status}).eq("id", trip_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    return {"trip": result.data[0]}
 
 
 @router.get("/{trip_id}")

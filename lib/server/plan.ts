@@ -86,7 +86,40 @@ export interface TripPlan {
   consensus: PlanConsensus;
   hotels: HotelsResponse;
   ai_summary: string | null;
+  itinerary: ItineraryRecord | null;
   notes: string[];
+}
+
+export interface ItineraryItem {
+  time_period: string;
+  title: string;
+  location: string;
+  description: string;
+  rationale: string;
+  estimated_cost: string | null;
+  indoor_backup: string | null;
+}
+
+export interface ItineraryDay {
+  date: string;
+  title: string;
+  items: ItineraryItem[];
+}
+
+export interface ItineraryContent {
+  summary: string;
+  days: ItineraryDay[];
+  practical_tips: string[];
+  generated_by: "claude" | "fallback";
+}
+
+export interface ItineraryRecord {
+  id?: string;
+  trip_id: string;
+  content: ItineraryContent;
+  provider: string;
+  model?: string | null;
+  created_at?: string;
 }
 
 /** §12: an unreachable plan service degrades to null — the page renders its own explanatory state. */

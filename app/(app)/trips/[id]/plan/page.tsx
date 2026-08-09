@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TagList } from "@/components/plan/tag-list";
+import { ItineraryGenerator } from "@/components/plan/itinerary-generator";
 import { getTripPlan } from "@/lib/server/plan";
 import { formatDateRange } from "@/lib/utils";
 import {
@@ -37,16 +38,15 @@ function labels(options: typeof PROPERTY_TYPE_OPTIONS, values: readonly string[]
 
 /**
  * The deterministic group consensus + live hotel search from
- * GET /trips/{id}/plan. No AI narrative yet (needs ANTHROPIC_API_KEY) and no
- * live flight fares (needs AEROXPLORER_TOKEN) — `notes` says so plainly
- * rather than the page pretending those pieces are there.
+ * GET /trips/{id}/plan, with generation handled by the authenticated
+ * /api/trips/{id}/itinerary proxy.
  */
 export default async function TripPlanPage({ params }: PlanPageParams) {
   const { id } = await params;
   const plan = await getTripPlan(id);
   if (!plan) notFound();
 
-  const { trip, consensus, hotels, members_completed, members_total, notes } = plan;
+  const { trip, consensus, hotels, members_completed, members_total, notes, itinerary } = plan;
 
   return (
     <div>
@@ -56,6 +56,12 @@ export default async function TripPlanPage({ params }: PlanPageParams) {
       />
 
       <div className="flex flex-col gap-6">
+        <ItineraryGenerator
+          tripId={id}
+          initialItinerary={itinerary}
+          canGenerate={members_total > 0 && members_completed === members_total}
+        />
+
         <Card className="flex flex-col gap-4 p-6">
           <div className="flex items-center gap-2.5">
             <BedDouble size={18} strokeWidth={1.5} className="text-muted-foreground" aria-hidden="true" />

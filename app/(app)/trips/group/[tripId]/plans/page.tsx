@@ -18,15 +18,21 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-context";
 import {
-  getTrip,
-  getSurveyStatuses,
-  getAllSurveysForTrip,
   getInbox,
+  getTrip,
   getPlans,
   savePlans,
-  getSurvey,
+  createTrip,
   updateTrip,
 } from "@/lib/group/store";
+import {
+  generateContextMemberToSurvey,
+  getGenerateContext,
+  getGroupTripRemote,
+  listItinerariesRemote,
+  saveItineraryRemote,
+  updateGroupTripRemote,
+} from "@/lib/group/api";
 import { generatePlans, buildOverlayForUser } from "@/lib/group/planning-engine";
 import { cn } from "@/lib/utils";
 import type { GroupTrip, GeneratedPlan } from "@/lib/group/types";
@@ -132,15 +138,27 @@ export default function PlansPage() {
   const [mounted, setMounted] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [genStep, setGenStep] = useState(0);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   useEffect(() => {
-    setMounted(true);
-    const t = getTrip(tripId);
-    if (!t) { router.replace("/trips/group"); return; }
-    setTrip(t);
-    setStatuses(getSurveyStatuses(tripId));
-    setPlans(getPlans(tripId));
-  }, [tripId, router]);
+    void Promise.all([getGroupTripRemote(tripId), listItinerariesRemote(tripId)])
+      .then(([remote, saved]) => {
+        if (getTrip(tripId)) updateTrip(tripId, remote.trip);
+        else createTrip(remote.trip);
+        setTrip(remote.trip);
+        setStatuses(remote.surveyStatuses);
+        const shared = saved.find((row) => row.member_email === user?.email) ?? saved[0];
+        const remotePlans = shared?.content?.plans;
+        if (Array.isArray(remotePlans)) {
+          savePlans(tripId, remotePlans as GeneratedPlan[]);
+          setPlans(remotePlans as GeneratedPlan[]);
+        } else {
+          setPlans(getPlans(tripId));
+        }
+        setMounted(true);
+      })
+      .catch(() => router.replace("/trips/group"));
+  }, [tripId, router, user?.email]);
 
   if (!mounted || !trip || !user) return null;
 
@@ -154,40 +172,42 @@ export default function PlansPage() {
     if (!isOrganizer) return;
     setGenerating(true);
     setGenStep(0);
+    setGenerationError(null);
 
     for (let i = 0; i < GENERATING_STEPS.length; i++) {
       await new Promise((r) => setTimeout(r, 350));
       setGenStep(i + 1);
     }
 
-    const surveys = getAllSurveysForTrip(trip);
-    const inboxItems = getInbox(tripId);
-    const generated = generatePlans(trip, surveys, inboxItems);
+    try {
+      await updateGroupTripRemote(tripId, "generating");
+      const context = await getGenerateContext(tripId);
+      const surveysByEmail = new Map(
+        context.members.map((member) => [member.email, generateContextMemberToSurvey(tripId, member)]),
+      );
+      const surveys = [...surveysByEmail.values()];
+      const inboxItems = getInbox(tripId);
+      const generated = generatePlans(trip, surveys, inboxItems);
 
-    // Build private overlays for the current user
-    const mySurvey = getSurvey(tripId, user.email);
-    for (const plan of generated) {
-      if (mySurvey) {
-        plan.privateOverlays[user.email] = buildOverlayForUser(mySurvey, plan);
-      }
-      // Seed demo overlays for other members so the demo reads well
-      for (const email of allEmails) {
-        if (email !== user.email && !plan.privateOverlays[email]) {
-          plan.privateOverlays[email] = [
-            "Estimated spend fits their submitted budget range",
-            "Activities align with their top interests",
-            "Schedule respects their preferred start time",
-          ];
+      for (const plan of generated) {
+        for (const [email, survey] of surveysByEmail) {
+          plan.privateOverlays[email] = buildOverlayForUser(survey, plan);
         }
       }
-    }
 
-    savePlans(tripId, generated);
-    updateTrip(tripId, { status: "reviewing" });
-    setTrip({ ...trip, status: "reviewing" });
-    setPlans(generated);
-    setGenerating(false);
-    setGenStep(0);
+      savePlans(tripId, generated);
+      await Promise.all(allEmails.map((email) => saveItineraryRemote(tripId, email, { plans: generated })));
+      await updateGroupTripRemote(tripId, "reviewing");
+      updateTrip(tripId, { status: "reviewing" });
+      setTrip({ ...trip, status: "reviewing" });
+      setPlans(generated);
+    } catch (error) {
+      setGenerationError(error instanceof Error ? error.message : "Could not generate group plans.");
+      await updateGroupTripRemote(tripId, "survey-open").catch(() => undefined);
+    } finally {
+      setGenerating(false);
+      setGenStep(0);
+    }
   };
 
   return (
@@ -206,6 +226,12 @@ export default function PlansPage() {
         title="Trip Plans"
         subtitle="Three options generated from everyone's preferences — consensus, balanced, and best value."
       />
+
+      {generationError ? (
+        <p role="alert" className="mb-5 rounded-lg border border-destructive/30 bg-card p-4 text-sm text-destructive">
+          {generationError}
+        </p>
+      ) : null}
 
       {/* Generating state (E1) */}
       {generating && (

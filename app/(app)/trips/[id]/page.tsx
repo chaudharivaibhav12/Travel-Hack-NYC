@@ -75,7 +75,7 @@ export default async function TripDetailPage({ params }: TripPageParams) {
           className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-transparent bg-primary px-5 py-2.5 text-sm font-semibold leading-5 text-primary-foreground transition-[background-color,transform,box-shadow] duration-[160ms] ease-out hover:bg-primary-deep active:scale-[0.99]"
         >
           <Map size={16} strokeWidth={2} aria-hidden="true" />
-          Generate itinerary
+          Review & generate itinerary
         </Link>
       </div>
 

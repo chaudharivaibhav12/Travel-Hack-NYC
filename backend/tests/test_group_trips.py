@@ -74,3 +74,23 @@ def test_generate_context_requires_completed_surveys(client, mock_supabase):
 
     assert response.status_code == 400
     assert response.json()["detail"] == "No completed surveys for this trip"
+
+
+def test_update_group_trip_status(client, mock_supabase):
+    table = MagicMock()
+    mock_supabase.table.return_value = table
+    table.update.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "trip-1", "status": "reviewing"}]
+    )
+
+    response = client.patch("/group-trips/trip-1", json={"status": "reviewing"})
+
+    assert response.status_code == 200
+    table.update.assert_called_once_with({"status": "reviewing"})
+
+
+def test_update_group_trip_rejects_unknown_status(client, mock_supabase):
+    response = client.patch("/group-trips/trip-1", json={"status": "finished"})
+
+    assert response.status_code == 422
+    mock_supabase.table.assert_not_called()

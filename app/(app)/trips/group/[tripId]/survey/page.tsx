@@ -11,10 +11,12 @@ import { useAuth } from "@/components/auth/auth-context";
 import {
   getTrip,
   getSurvey,
+  createTrip,
+  updateTrip,
   saveSurvey,
   markSurveyComplete,
-  isSurveyComplete,
 } from "@/lib/group/store";
+import { getGroupTripRemote, getSurveyRemote, saveSurveyRemote } from "@/lib/group/api";
 import { cn } from "@/lib/utils";
 import type { PrivateSurvey, GroupTrip } from "@/lib/group/types";
 
@@ -186,34 +188,49 @@ export default function SurveyPage() {
   const [survey, setSurvey] = useState<PrivateSurvey | null>(null);
   const [step, setStep] = useState(1);
   const [mounted, setMounted] = useState(false);
+  const [alreadyDone, setAlreadyDone] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [cannotDoInput, setCannotDoInput] = useState("");
 
   useEffect(() => {
-    setMounted(true);
-    const t = getTrip(tripId);
-    if (!t) { router.replace("/trips/group"); return; }
-    setTrip(t);
-
     if (!user?.email) return;
-    const existing = getSurvey(tripId, user.email);
-    setSurvey(existing ?? emptySurvey(tripId));
-    if (existing?.step) setStep(Math.min(existing.step, TOTAL_STEPS));
+    void Promise.all([getGroupTripRemote(tripId), getSurveyRemote(tripId, user.email)])
+      .then(([remote, remoteSurvey]) => {
+        if (getTrip(tripId)) updateTrip(tripId, remote.trip);
+        else createTrip(remote.trip);
+        setTrip(remote.trip);
+        const localSurvey = getSurvey(tripId, user.email);
+        const existing = remoteSurvey?.survey ?? localSurvey;
+        setSurvey(existing ?? emptySurvey(tripId));
+        setAlreadyDone(remoteSurvey?.completed ?? false);
+        if (localSurvey?.step && !remoteSurvey?.completed) {
+          setStep(Math.min(localSurvey.step, TOTAL_STEPS));
+        } else if (remoteSurvey?.completed) {
+          setStep(TOTAL_STEPS);
+        }
+        setMounted(true);
+      })
+      .catch(() => router.replace("/trips/group"));
   }, [tripId, user?.email, router]);
 
   if (!mounted || !survey || !trip || !user) return null;
-
-  const alreadyDone = isSurveyComplete(tripId, user.email);
 
   function update<K extends keyof PrivateSurvey>(key: K, value: PrivateSurvey[K]) {
     setSurvey((prev) => prev ? { ...prev, [key]: value } : prev);
   }
 
-  function saveAndNext() {
+  async function saveAndNext() {
     if (!survey || !user) return;
     const next = step + 1;
     const updated = { ...survey, step: next };
     saveSurvey(updated, user.email);
     setSurvey(updated);
+    setSaveError(null);
+    try {
+      await saveSurveyRemote(tripId, updated, user.email, user.id, false);
+    } catch {
+      setSaveError("Saved on this device, but could not sync with the group yet.");
+    }
     if (next <= TOTAL_STEPS) setStep(next);
   }
 
@@ -221,12 +238,19 @@ export default function SurveyPage() {
     setStep((s) => Math.max(1, s - 1));
   }
 
-  function complete() {
+  async function complete() {
     if (!survey || !user) return;
     const completed = { ...survey, step: TOTAL_STEPS, completedAt: new Date().toISOString() };
     saveSurvey(completed, user.email);
-    markSurveyComplete(tripId, user.email);
-    router.push(`/trips/group/${tripId}`);
+    setSaveError(null);
+    try {
+      await saveSurveyRemote(tripId, completed, user.email, user.id, true);
+      markSurveyComplete(tripId, user.email);
+      setAlreadyDone(true);
+      router.push(`/trips/group/${tripId}`);
+    } catch {
+      setSaveError("Your survey is saved locally, but it could not sync. Please try again.");
+    }
   }
 
   const progressPct = ((step - 1) / (TOTAL_STEPS - 1)) * 100;
@@ -245,6 +269,11 @@ export default function SurveyPage() {
       </div>
 
       {/* Progress */}
+      {saveError ? (
+        <p role="alert" className="mb-4 rounded-lg border border-destructive/30 bg-card p-3 text-sm text-destructive">
+          {saveError}
+        </p>
+      ) : null}
       <div className="mb-6">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-[12.5px] font-medium text-foreground">
@@ -513,7 +542,7 @@ export default function SurveyPage() {
               <h1 className="font-display text-[20px] font-semibold leading-[26px] text-foreground">
                 Food, accessibility &amp; comfort
               </h1>
-              <p className="mt-1 text-[12.5px] text-muted-foreground">All optional — only fill in what's relevant to you.</p>
+              <p className="mt-1 text-[12.5px] text-muted-foreground">All optional — only fill in what&rsquo;s relevant to you.</p>
             </div>
 
             <Field label="Dietary preferences or allergies (optional)" placeholder="e.g. vegan, gluten-free, nut allergy"
@@ -652,7 +681,7 @@ export default function SurveyPage() {
                 Your answers are saved.
               </h1>
               <p className="mt-2 text-[13.5px] leading-[20px] text-muted-foreground">
-                They're stored privately on this device and will only ever appear to you as personalized plan explanations — never to other travelers.
+                They&rsquo;re saved privately and will only appear to you as personalized plan explanations — never to other travelers.
               </p>
             </div>
             <ul className="flex flex-col gap-2">
@@ -698,7 +727,7 @@ export default function SurveyPage() {
               <Button variant="secondary">Add trip ideas</Button>
             </Link>
             <Button variant="primary" onClick={complete}>
-              {alreadyDone ? "Update &amp; go to dashboard" : "Save &amp; go to dashboard"}
+              {alreadyDone ? "Update & go to dashboard" : "Save & go to dashboard"}
             </Button>
           </div>
         )}

@@ -6,9 +6,21 @@ from supabase import Client
 
 from api.dependencies import get_supabase
 from api.routers.preferences import fetch_member_preferences
+from services.claude import GeneratedItinerary, generate_itinerary
 from services.stay22 import Stay22ServiceError, search_accommodations, unavailable_response
 
 router = APIRouter(prefix="/trips", tags=["plans"])
+
+
+def latest_itinerary(supabase: Client, trip_id: str) -> dict | None:
+    try:
+        result = (
+            supabase.table("trip_itineraries").select("*").eq("trip_id", trip_id)
+            .order("created_at", desc=True).limit(1).execute()
+        )
+        return result.data[0] if isinstance(result.data, list) and result.data else None
+    except Exception:
+        return None
 
 
 def union_values(groups: list[list[str] | None]) -> list[str]:
@@ -148,5 +160,44 @@ def get_trip_plan(trip_id: str, supabase: Client = Depends(get_supabase)):
         "consensus": consensus,
         "hotels": hotels,
         "ai_summary": None,
+        "itinerary": latest_itinerary(supabase, trip_id),
         "notes": notes,
     }
+
+
+@router.post("/{trip_id}/itinerary")
+def create_trip_itinerary(trip_id: str, supabase: Client = Depends(get_supabase)):
+    plan = get_trip_plan(trip_id, supabase)
+    if plan["members_total"] == 0:
+        raise HTTPException(status_code=409, detail="Add the traveler before generating an itinerary")
+    if plan["members_completed"] < plan["members_total"]:
+        raise HTTPException(
+            status_code=409,
+            detail="Complete travel, stay, food, and activity preferences before generating",
+        )
+
+    context = {
+        "trip": plan["trip"],
+        "travelers": plan["members"],
+        "consensus": plan["consensus"],
+        "hotels": plan["hotels"],
+    }
+    itinerary = generate_itinerary(context)
+    record = {
+        "trip_id": trip_id,
+        "created_by": plan["trip"].get("created_by"),
+        "content": itinerary.model_dump(mode="json"),
+        "provider": itinerary.generated_by,
+        "model": os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5") if itinerary.generated_by == "claude" else None,
+        "prompt_version": "private-itinerary-v1",
+    }
+    persisted = False
+    try:
+        result = supabase.table("trip_itineraries").insert(record).execute()
+        persisted = bool(result.data)
+        if persisted:
+            record = result.data[0]
+    except Exception:
+        record = {"content": itinerary.model_dump(mode="json"), **record}
+
+    return {"itinerary": record, "persisted": persisted}
