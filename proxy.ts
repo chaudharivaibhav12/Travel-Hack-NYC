@@ -40,7 +40,13 @@ export const config = {
      * generated image routes like /apple-icon.png. Listing assets by name
      * here was how /apple-icon.png ended up 307-ing to /login: the PWA
      * install prompt needs those assets reachable while signed out.
+     *
+     * `api/` is excluded for the same class of reason: a redirect to an HTML
+     * login page is a broken response for a fetch() expecting JSON. Route
+     * handlers authenticate themselves and return 401 when they need to —
+     * without this exclusion /api/weather 307s to /login and every caller
+     * fails on a JSON parse error rather than a readable status.
      */
-    "/((?!_next/|.*\\.[a-zA-Z0-9]+$).*)",
+    "/((?!api/|_next/|.*\\.[a-zA-Z0-9]+$).*)",
   ],
 };

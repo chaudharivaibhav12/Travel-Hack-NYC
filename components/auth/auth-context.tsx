@@ -4,12 +4,19 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { authProvider, type AuthResult, type AuthUser } from "@/lib/auth/provider";
+import {
+  authProvider,
+  toAuthUserFromSession,
+  type AuthResult,
+  type AuthUser,
+} from "@/lib/auth/provider";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import { clearSessionCookie, writeSessionCookie } from "@/lib/auth/session";
 
 interface AuthContextValue {
@@ -34,6 +41,47 @@ export function AuthProviderClient({
 }) {
   const [user, setUser] = useState<AuthUser | null>(initialUser);
   const router = useRouter();
+
+  /**
+   * Completes the Google round trip.
+   *
+   * `signInWithGoogle` navigates away, so it never resolves — the session
+   * arrives as a code on the URL when the browser lands back on /login.
+   * supabase-js exchanges it (detectSessionInUrl), and this listener turns the
+   * resulting session into the cookie the rest of the app already reads.
+   *
+   * Mounted in the root layout, so it covers /login as well as app routes.
+   */
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    let active = true;
+
+    const adopt = (session: Parameters<typeof toAuthUserFromSession>[0] | null) => {
+      if (!active || !session) return;
+      const nextUser = toAuthUserFromSession(session);
+      writeSessionCookie(nextUser);
+      setUser(nextUser);
+      router.refresh();
+    };
+
+    // Covers a session restored from storage on a cold load.
+    void supabase.auth.getSession().then(({ data }) => adopt(data.session));
+
+    // Covers the OAuth code exchange, which resolves after mount.
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "SIGNED_OUT") return;
+        adopt(session);
+      },
+    );
+
+    return () => {
+      active = false;
+      subscription.subscription.unsubscribe();
+    };
+  }, [router]);
 
   const signInWithPassword = useCallback(
     async (identifier: string, password: string) => {

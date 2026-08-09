@@ -88,5 +88,116 @@ class LocalAuthProvider implements AuthProvider {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Supabase provider — real auth, with the §12 fallback preserved.            */
+/* -------------------------------------------------------------------------- */
+
+import type { Session, User } from "@supabase/supabase-js";
+import { getSupabaseClient } from "@/lib/supabase/client";
+
+/** Supabase's user shape -> the only user shape the UI knows about. */
+export function toAuthUser(
+  user: User,
+  method: AuthUser["method"],
+): AuthUser {
+  const metadata = user.user_metadata as {
+    full_name?: string;
+    name?: string;
+  } | null;
+
+  const name =
+    metadata?.full_name?.trim() ||
+    metadata?.name?.trim() ||
+    user.email?.split("@")[0] ||
+    "Traveler";
+
+  return { id: user.id, name, email: user.email ?? "", method };
+}
+
+export function toAuthUserFromSession(session: Session): AuthUser {
+  const provider = session.user.app_metadata?.provider;
+  return toAuthUser(session.user, provider === "google" ? "google" : "password");
+}
+
+/** True when the identifier/password pair is the seeded demo login. */
+function isDemoLogin(identifier: string, password: string): boolean {
+  const normalized = identifier.trim().toLowerCase();
+  return (
+    (DEMO_CREDENTIALS.identifiers as readonly string[]).includes(normalized) &&
+    password === DEMO_CREDENTIALS.password
+  );
+}
+
+class SupabaseAuthProvider implements AuthProvider {
+  private readonly local = new LocalAuthProvider();
+
+  async signInWithPassword(
+    identifier: string,
+    password: string,
+  ): Promise<AuthResult> {
+    // The login screen advertises admin/admin123, and §12 requires that path to
+    // keep working regardless of Supabase's state. Check it first — these are
+    // not real Supabase users and would always fail upstream.
+    if (isDemoLogin(identifier, password)) {
+      return this.local.signInWithPassword(identifier, password);
+    }
+
+    const supabase = getSupabaseClient();
+    if (!supabase) return this.local.signInWithPassword(identifier, password);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: identifier.trim(),
+        password,
+      });
+
+      // A rejected credential is a real answer, not an outage: surface it.
+      // Falling back to the demo user here would sign people in on a wrong
+      // password, which is worse than an error message.
+      if (error) return { ok: false, error: error.message };
+      if (!data.user) return { ok: false, error: "That email or password isn't right." };
+
+      return { ok: true, user: toAuthUser(data.user, "password") };
+    } catch {
+      // Network/infrastructure failure — §12 says degrade, don't break.
+      return this.local.signInWithPassword(identifier, password);
+    }
+  }
+
+  async signInWithGoogle(): Promise<AuthResult> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return this.local.signInWithGoogle();
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          // Return to /login: `proxy.ts` lets that route through without a
+          // session cookie, so the code can be exchanged before redirecting on.
+          redirectTo: `${window.location.origin}/login`,
+        },
+      });
+
+      if (error) return this.local.signInWithGoogle();
+
+      // The browser is navigating to Google. Nothing resolves after this —
+      // AuthProviderClient picks the session up when we land back on /login.
+      return new Promise<AuthResult>(() => {});
+    } catch {
+      return this.local.signInWithGoogle();
+    }
+  }
+
+  async signOut(): Promise<void> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return this.local.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Local session is cleared by the caller regardless.
+    }
+  }
+}
+
 /** Replace this line — and only this line — when Supabase is wired up. */
-export const authProvider: AuthProvider = new LocalAuthProvider();
+export const authProvider: AuthProvider = new SupabaseAuthProvider();
