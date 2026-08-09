@@ -61,7 +61,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     shortLabel: "Trips",
     href: "/trips",
     icon: Briefcase,
-    built: false,
+    built: true,
     inTabBar: true,
   },
   {

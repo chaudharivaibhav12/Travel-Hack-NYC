@@ -203,6 +203,70 @@ def test_create_trip_failure_returns_500(client, mock_supabase):
     assert resp.status_code == 500
 
 
+def test_create_trip_supabase_exception_returns_400_with_detail(client, mock_supabase):
+    table_mock = _chain(mock_supabase, "trips")
+    table_mock.insert.return_value.execute.side_effect = Exception(
+        'invalid input syntax for type uuid: "demo-user"'
+    )
+
+    resp = client.post("/trips", json={
+        "event_name": "Cabo Bachelor Party",
+        "event_location": "Cabo San Lucas",
+        "lat": 22.89,
+        "lng": -109.91,
+        "checkin": "2026-09-01",
+        "checkout": "2026-09-05",
+        "user_id": "demo-user",
+    })
+
+    assert resp.status_code == 400
+    assert "uuid" in resp.json()["detail"]
+
+
+def test_list_trips_returns_trips_for_user(client, mock_supabase):
+    table_mock = _chain(mock_supabase, "trips")
+    table_mock.select.return_value.eq.return_value.order.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "trip-1", "event_name": "Cabo Bachelor Party", "created_by": "user-123"}]
+    )
+
+    resp = client.get("/trips", params={"user_id": "user-123"})
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "trips": [{"id": "trip-1", "event_name": "Cabo Bachelor Party", "created_by": "user-123"}]
+    }
+    table_mock.select.return_value.eq.assert_called_once_with("created_by", "user-123")
+
+
+def test_list_trips_returns_empty_list_on_supabase_exception(client, mock_supabase):
+    table_mock = _chain(mock_supabase, "trips")
+    table_mock.select.return_value.eq.return_value.order.return_value.execute.side_effect = Exception(
+        'invalid input syntax for type uuid: "demo-user"'
+    )
+
+    resp = client.get("/trips", params={"user_id": "demo-user"})
+
+    assert resp.status_code == 200
+    assert resp.json() == {"trips": []}
+
+
+def test_list_trips_requires_user_id(client):
+    resp = client.get("/trips")
+    assert resp.status_code == 422
+
+
+def test_list_trips_returns_empty_list_when_none_found(client, mock_supabase):
+    table_mock = _chain(mock_supabase, "trips")
+    table_mock.select.return_value.eq.return_value.order.return_value.execute.return_value = SimpleNamespace(
+        data=None
+    )
+
+    resp = client.get("/trips", params={"user_id": "user-123"})
+
+    assert resp.status_code == 200
+    assert resp.json() == {"trips": []}
+
+
 def test_get_trip_not_found_returns_404(client, mock_supabase):
     table_mock = _chain(mock_supabase, "trips")
     table_mock.select.return_value.eq.return_value.single.return_value.execute.return_value = SimpleNamespace(
