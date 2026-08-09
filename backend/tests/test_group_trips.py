@@ -39,7 +39,8 @@ def test_create_group_trip(client, mock_supabase):
 
     assert response.status_code == 200
     assert response.json()["trip_id"] == "trip-1"
-    mock_supabase.table.assert_called_with("group_trips")
+    assert mock_supabase.table.call_args_list[0].args == ("group_trips",)
+    mock_supabase.table.assert_any_call("group_trip_invitations")
 
 
 def test_get_group_trip_not_found(client, mock_supabase):
@@ -94,3 +95,18 @@ def test_update_group_trip_rejects_unknown_status(client, mock_supabase):
 
     assert response.status_code == 422
     mock_supabase.table.assert_not_called()
+
+
+def test_respond_to_invitation_accepts_pending_request(client, mock_supabase):
+    table = MagicMock()
+    mock_supabase.table.return_value = table
+    table.update.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "invite-1", "status": "accepted"}]
+    )
+
+    response = client.post("/group-trips/trip-1/invitations/respond", json={
+        "email": "friend@example.com", "response": "accepted",
+    })
+
+    assert response.status_code == 200
+    assert response.json()["invitation"]["status"] == "accepted"

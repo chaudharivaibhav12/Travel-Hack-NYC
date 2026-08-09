@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, Plus, Lock, ClipboardList, Sparkles, CheckCircle2 } from "lucide-react";
+import { Users, Plus, Lock, ClipboardList, Sparkles, CheckCircle2, Mail, X } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-context";
 import { cn } from "@/lib/utils";
-import { listGroupTripsRemote } from "@/lib/group/api";
+import { listGroupTripsRemote, listPendingInvitations, respondToInvitation, type GroupInvitation } from "@/lib/group/api";
 import type { GroupTrip } from "@/lib/group/types";
 
 const STATUS_META: Record<
@@ -119,20 +119,29 @@ export default function GroupTripsPage() {
   const { user } = useAuth();
   const [trips, setTrips] = useState<GroupTrip[]>([]);
   const [allSurveyStatuses, setAllSurveyStatuses] = useState<Record<string, Record<string, string>>>({});
-  const [mounted, setMounted] = useState(false);
+  const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
 
   useEffect(() => {
-    setMounted(true);
     if (!user?.email) return;
-    listGroupTripsRemote(user.email)
-      .then(({ trips: t, surveyStatuses }) => {
+    Promise.all([listGroupTripsRemote(user.email), listPendingInvitations(user.email)])
+      .then(([{ trips: t, surveyStatuses }, pending]) => {
         setTrips(t);
         setAllSurveyStatuses(surveyStatuses);
+        setInvitations(pending);
       })
       .catch(console.error);
   }, [user?.email]);
 
-  if (!mounted) return null;
+  async function respond(invitation: GroupInvitation, response: "accepted" | "declined") {
+    if (!user) return;
+    await respondToInvitation(invitation.trip_id, user.email, response);
+    setInvitations((current) => current.filter((item) => item.id !== invitation.id));
+    if (response === "accepted") {
+      const refreshed = await listGroupTripsRemote(user.email);
+      setTrips(refreshed.trips);
+      setAllSurveyStatuses(refreshed.surveyStatuses);
+    }
+  }
 
   return (
     <div>
@@ -156,14 +165,40 @@ export default function GroupTripsPage() {
           description="Group trips are tied to your account so only invited members can access them."
           action={{ label: "Sign in", href: "/login" }}
         />
-      ) : trips.length === 0 ? (
+      ) : (
+        <div className="flex flex-col gap-6">
+          {invitations.length > 0 ? (
+            <section aria-label="Pending invitations" className="flex flex-col gap-3">
+              <h2 className="font-display text-lg font-semibold text-foreground">Invitations</h2>
+              {invitations.map((invitation) => (
+                <Card key={invitation.id} className="p-5">
+                  <div className="flex items-start gap-3">
+                    <Mail size={18} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-display text-[16px] font-semibold text-foreground">{String(invitation.trip.title)}</p>
+                      <p className="mt-1 text-[12.5px] text-muted-foreground">
+                        {String(invitation.trip.destination)} · invited by {invitation.inviter_email}
+                      </p>
+                      <div className="mt-4 flex gap-2">
+                        <Button onClick={() => void respond(invitation, "accepted")}>Accept</Button>
+                        <Button variant="secondary" onClick={() => void respond(invitation, "declined")}>
+                          <X size={14} aria-hidden="true" /> Decline
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </section>
+          ) : null}
+          {trips.length === 0 ? (
         <EmptyState
           icon={Users}
           title="No group trips yet"
           description="Create a trip, add friends by email, and GroupWeave will build a plan that works for everyone — without anyone seeing each other's private preferences."
           action={{ label: "Create your first group trip", href: "/trips/group/new" }}
         />
-      ) : (
+          ) : (
         <div className="flex flex-col gap-4">
           {trips.map((trip) => (
             <GroupTripCard
@@ -181,6 +216,8 @@ export default function GroupTripsPage() {
               that satisfy everyone&rsquo;s hard constraints. You vote, pick one, and lock it.
             </p>
           </Card>
+        </div>
+          )}
         </div>
       )}
     </div>

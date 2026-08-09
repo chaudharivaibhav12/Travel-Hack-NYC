@@ -62,3 +62,17 @@
   background-color: var(--muted);
   border-radius: var(--radius);
 }
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.app-content-bottom {
+  padding-bottom: calc(84px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 48rem) {
+  .app-content-bottom {
+    padding-bottom: calc(var(--spacing) * 12);
+  }
+}

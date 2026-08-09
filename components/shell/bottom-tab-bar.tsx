@@ -18,7 +18,7 @@ export function BottomTabBar() {
       aria-label="Primary"
       className={cn(
         "fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card md:hidden",
-        "pb-[env(safe-area-inset-bottom)]",
+        "safe-area-bottom",
       )}
     >
       <ul className="flex h-[60px] items-stretch">

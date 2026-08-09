@@ -66,7 +66,7 @@ export function MobileHeader() {
             className="absolute inset-0 bg-foreground/25"
           />
 
-          <div className="absolute inset-x-0 bottom-0 rounded-t-xl border-t border-border bg-card pb-[env(safe-area-inset-bottom)] shadow-lift">
+          <div className="safe-area-bottom absolute inset-x-0 bottom-0 rounded-t-xl border-t border-border bg-card shadow-lift">
             <div className="flex items-center justify-between px-5 pb-2 pt-4">
               <h2 className="font-display text-[17px] font-semibold leading-[22px] text-foreground">
                 More
