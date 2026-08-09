@@ -56,6 +56,17 @@ def test_get_group_trip_not_found(client, mock_supabase):
     assert response.json()["detail"] == "Trip not found"
 
 
+def test_get_missing_survey_returns_404(client, mock_supabase):
+    table = MagicMock()
+    mock_supabase.table.return_value = table
+    table.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = None
+
+    response = client.get("/group-trips/trip-1/surveys/friend@example.com")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Survey not found"
+
+
 def test_generate_context_requires_completed_surveys(client, mock_supabase):
     trip_table = MagicMock()
     survey_table = MagicMock()

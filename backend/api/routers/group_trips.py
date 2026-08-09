@@ -268,7 +268,7 @@ def get_survey(trip_id: str, user_email: str, supabase: Client = Depends(get_sup
         .maybe_single()
         .execute()
     )
-    if not result.data:
+    if not result or not result.data:
         raise HTTPException(status_code=404, detail="Survey not found")
     return {"survey": result.data}
 
