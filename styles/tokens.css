@@ -1,0 +1,156 @@
+/* ============================================================================
+   Sage Adventurer — "Alpine" theme tokens
+   Source of truth: DESIGN.md §2. Never add raw hex to components.
+
+   Alpine Blue #294C60 · Pine Green #4D7C6F · Mist #DDE7E1
+   Snow #F4F7F5 · Stone Gray #6B7A78
+   ========================================================================== */
+
+:root {
+  --radius: 0.875rem; /* 14px card radius */
+
+  /* Canvas & surfaces — Snow / card */
+  --background: oklch(0.973 0.004 157); /* #F4F7F5 Snow */
+  --foreground: oklch(0.28 0.028 237); /* #1B2B35 Ink */
+  --card: oklch(0.996 0.002 146); /* #FDFEFD */
+  --card-foreground: oklch(0.28 0.028 237);
+  --popover: oklch(0.996 0.002 146);
+  --popover-foreground: oklch(0.28 0.028 237);
+
+  /* Pine Green — the single accent */
+  --primary: oklch(0.5484 0.0556 174.7); /* #4D7C6F */
+  --primary-foreground: oklch(0.996 0.002 146);
+  --primary-deep: oklch(0.475 0.052 172); /* #3C6659 */
+
+  /* Mist fills */
+  --accent: oklch(0.919 0.013 160); /* #DDE7E1 */
+  --accent-foreground: oklch(0.34 0.032 220);
+  --accent-border: oklch(0.868 0.02 160); /* #C9D8CF */
+
+  --secondary: oklch(0.955 0.006 160);
+  --secondary-foreground: oklch(0.28 0.028 237);
+
+  --muted: oklch(0.948 0.006 165);
+  --muted-foreground: oklch(0.567 0.018 187); /* #6B7A78 Stone Gray */
+
+  --destructive: oklch(0.5379 0.1456 28.5); /* #B3453A */
+  --destructive-foreground: oklch(0.996 0.002 146);
+
+  --border: oklch(0.913 0.009 197); /* #DCE4E4 */
+  --input: oklch(0.913 0.009 197);
+  --ring: oklch(0.5484 0.0556 174.7);
+
+  /* Alpine Blue sidebar — its own scale, a fixed dark surface in both themes */
+  --sidebar: oklch(0.399 0.053 235); /* #294C60 */
+  --sidebar-raised: oklch(0.462 0.061 235); /* #345E76 */
+  --sidebar-foreground: oklch(0.919 0.013 160);
+  --sidebar-muted: oklch(0.76 0.024 200);
+  --sidebar-primary: oklch(0.5484 0.0556 174.7);
+  --sidebar-primary-foreground: oklch(0.985 0.004 160);
+  --sidebar-accent: oklch(1 0 0 / 10%);
+  --sidebar-accent-foreground: oklch(0.975 0.006 160);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.653 0.057 173);
+
+  /* Progress / charts — pine-led, cool support */
+  --chart-1: oklch(0.5484 0.0556 174.7);
+  --chart-2: oklch(0.399 0.053 235);
+  --chart-3: oklch(0.707 0.05 224);
+  --chart-4: oklch(0.687 0.097 55);
+  --chart-5: oklch(0.567 0.018 187);
+  --track: oklch(0.868 0.02 160); /* #C9D8CF */
+
+  /* Elevation — only two levels */
+  --shadow-page: 0 1px 2px oklch(0.28 0.028 237 / 5%);
+  --shadow-lift: 0 6px 18px -8px oklch(0.28 0.028 237 / 16%);
+}
+
+.dark {
+  --background: oklch(0.238 0.03 236);
+  --foreground: oklch(0.945 0.008 160);
+  --card: oklch(0.29 0.036 236);
+  --card-foreground: oklch(0.945 0.008 160);
+  --popover: oklch(0.29 0.036 236);
+  --popover-foreground: oklch(0.945 0.008 160);
+
+  --primary: oklch(0.653 0.057 173); /* #6B9C8D lifted for dark */
+  --primary-foreground: oklch(0.22 0.028 236);
+  --primary-deep: oklch(0.72 0.055 172);
+
+  --accent: oklch(0.345 0.04 232);
+  --accent-foreground: oklch(0.93 0.01 160);
+  --accent-border: oklch(1 0 0 / 12%);
+
+  --secondary: oklch(0.33 0.036 236);
+  --secondary-foreground: oklch(0.945 0.008 160);
+
+  --muted: oklch(0.33 0.036 236);
+  --muted-foreground: oklch(0.735 0.016 190);
+
+  --destructive: oklch(0.655 0.15 28);
+  --destructive-foreground: oklch(0.975 0.006 160);
+
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.653 0.057 173);
+
+  --sidebar: oklch(0.3 0.04 236);
+  --sidebar-raised: oklch(0.36 0.048 236);
+  --track: oklch(1 0 0 / 13%);
+
+  --shadow-page: 0 1px 2px oklch(0 0 0 / 26%);
+  --shadow-lift: 0 6px 18px -8px oklch(0 0 0 / 42%);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-deep: var(--primary-deep);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-border: var(--accent-border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-track: var(--track);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-raised: var(--sidebar-raised);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-page: var(--shadow-page);
+  --shadow-lift: var(--shadow-lift);
+}

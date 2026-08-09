@@ -1,0 +1,64 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+  }
+
+  /* DESIGN.md §8 — never remove focus outlines */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* DESIGN.md §8 — motion policy */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skeleton shimmer for loading states (DESIGN.md §8) */
+@keyframes sage-shimmer {
+  0% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.55;
+  }
+}
+
+.sage-skeleton {
+  animation: sage-shimmer 1.8s ease-in-out infinite;
+  background-color: var(--muted);
+  border-radius: var(--radius);
+}
