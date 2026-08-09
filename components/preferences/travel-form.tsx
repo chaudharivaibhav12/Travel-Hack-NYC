@@ -8,20 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ChipRadio } from "@/components/ui/chip-group";
 import { preferencesProvider } from "@/lib/providers/preferences";
 import type { TravelPreferences } from "@/lib/server/preferences";
-
-const DEPARTURE_TIME_OPTIONS = [
-  { value: "any", label: "Any time" },
-  { value: "morning", label: "Morning" },
-  { value: "afternoon", label: "Afternoon" },
-  { value: "evening", label: "Evening" },
-];
-
-const FLEXIBILITY_OPTIONS = [
-  { value: "exact", label: "Exact dates" },
-  { value: "1day", label: "±1 day" },
-  { value: "3days", label: "±3 days" },
-  { value: "flexible", label: "Flexible" },
-];
+import { DEPARTURE_TIME_OPTIONS, FLEXIBILITY_OPTIONS } from "@/lib/data/preferences-options";
 
 export function TravelPreferencesForm({
   tripId,

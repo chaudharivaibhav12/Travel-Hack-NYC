@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import date
 
 from fastapi import FastAPI, HTTPException, Query
@@ -369,12 +370,12 @@ def save_activities_preferences(prefs: PreferencesActivities):
     return _upsert_preferences("preferences_activities", prefs.model_dump(mode="json"))
 
 
-@app.get("/preferences/{trip_id}/{member_id}")
-def get_member_preferences(trip_id: str, member_id: str):
+def _fetch_member_preferences(trip_id: str, member_id: str) -> dict:
     """
     All four preference rows for one member on one trip — null for any
-    category not filled in yet. Powers the wizard's pre-fill and the trip
-    page's completion checkmarks.
+    category not filled in yet. Shared by GET /preferences/{trip_id}/{member_id}
+    (wizard pre-fill, trip page checkmarks) and GET /trips/{trip_id}/plan
+    (group consensus).
     """
     def _one(table: str):
         try:
@@ -394,6 +395,171 @@ def get_member_preferences(trip_id: str, member_id: str):
         "stay": _one("preferences_stay"),
         "food": _one("preferences_food"),
         "activities": _one("preferences_activities"),
+    }
+
+
+@app.get("/preferences/{trip_id}/{member_id}")
+def get_member_preferences(trip_id: str, member_id: str):
+    return _fetch_member_preferences(trip_id, member_id)
+
+
+# ─── Plan ────────────────────────────────────────────────────────────────────
+# Deterministic group consensus + a live Stay22 hotel search, all in one call.
+# No AI narrative and no live flight fares yet — those need ANTHROPIC_API_KEY
+# and AEROXPLORER_TOKEN, which aren't set. Rather than fake them, this returns
+# the real computed consensus and says in `notes` what's off and why; once
+# those keys exist, an AI summary + fare lookups can slot in without changing
+# this response's shape.
+
+def _union(lists: list[list[str] | None]) -> list[str]:
+    """Merge array preference fields (property types, cuisines, ...), stable order, no dupes."""
+    seen: list[str] = []
+    for values in lists:
+        for value in values or []:
+            if value not in seen:
+                seen.append(value)
+    return seen
+
+
+def _mode(values: list[str | None]) -> str | None:
+    """Most common non-null value — used for single-choice fields like pace or meal budget."""
+    present = [value for value in values if value]
+    if not present:
+        return None
+    return Counter(present).most_common(1)[0][0]
+
+
+def _budget_consensus(mins: list[int], maxes: list[int]) -> dict:
+    """Highest floor / lowest ceiling everyone can afford; average as fallback if no overlap."""
+    if not mins or not maxes:
+        return {"min": None, "max": None}
+    budget_min, budget_max = max(mins), min(maxes)
+    if budget_min > budget_max:
+        budget_min = round(sum(mins) / len(mins))
+        budget_max = round(sum(maxes) / len(maxes))
+    return {"min": budget_min, "max": budget_max}
+
+
+def _flight_groups(travel_prefs: list[dict]) -> dict:
+    """Group members by departure date and flag anyone leaving on a different day."""
+    dated = [(pref["name"], pref["departure_date"]) for pref in travel_prefs if pref.get("departure_date")]
+    if not dated:
+        return {"groups": [], "warnings": []}
+
+    majority_date = Counter(date for _, date in dated).most_common(1)[0][0]
+    groups: dict[str, list[str]] = {}
+    for name, dep_date in dated:
+        groups.setdefault(dep_date, []).append(name)
+
+    warnings = [
+        f"{name} departs {dep_date}, most of the group leaves {majority_date}"
+        for name, dep_date in dated
+        if dep_date != majority_date
+    ]
+
+    return {
+        "groups": [{"date": dep_date, "members": names} for dep_date, names in groups.items()],
+        "warnings": warnings,
+    }
+
+
+@app.get("/trips/{trip_id}/plan")
+def get_trip_plan(trip_id: str):
+    """
+    Everything the results screen needs: trip details, each member's own
+    preferences, a deterministic group consensus (merged stay/food/activity
+    preferences + flight-date groupings), and a live Stay22 hotel search
+    against that consensus budget.
+    """
+    trip_result = supabase.table("trips").select("*").eq("id", trip_id).single().execute()
+    if not trip_result.data:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    trip = trip_result.data
+
+    members = (supabase.table("members").select("*").eq("trip_id", trip_id).execute().data) or []
+
+    member_rows = []
+    for member in members:
+        prefs = _fetch_member_preferences(trip_id, member["id"])
+        member_rows.append({
+            "member_id": member["id"],
+            "name": member.get("name") or "Traveler",
+            **prefs,
+        })
+
+    stay_prefs = [row["stay"] for row in member_rows if row["stay"]]
+    food_prefs = [row["food"] for row in member_rows if row["food"]]
+    activity_prefs = [row["activities"] for row in member_rows if row["activities"]]
+    travel_prefs = [
+        {**row["travel"], "name": row["name"]} for row in member_rows if row["travel"]
+    ]
+
+    stay_budget = _budget_consensus(
+        [pref["budget_min"] for pref in stay_prefs if pref.get("budget_min") is not None],
+        [pref["budget_max"] for pref in stay_prefs if pref.get("budget_max") is not None],
+    )
+
+    consensus = {
+        "stay": {
+            "budget_min": stay_budget["min"],
+            "budget_max": stay_budget["max"],
+            "property_types": _union([pref.get("property_types") for pref in stay_prefs]),
+            "vibes": _union([pref.get("vibes") for pref in stay_prefs]),
+            "needs": _union([pref.get("needs") for pref in stay_prefs]),
+        },
+        "food": {
+            "cuisines": _union([pref.get("cuisines") for pref in food_prefs]),
+            "dietary": _union([pref.get("dietary") for pref in food_prefs]),
+            "meal_budget": _mode([pref.get("meal_budget") for pref in food_prefs]),
+        },
+        "activities": {
+            "interests": _union([pref.get("interests") for pref in activity_prefs]),
+            "pace": _mode([pref.get("pace") for pref in activity_prefs]),
+            "must_sees": [
+                {"name": row["name"], "must_sees": row["activities"]["must_sees"]}
+                for row in member_rows
+                if row["activities"] and row["activities"].get("must_sees")
+            ],
+        },
+        "flights": _flight_groups(travel_prefs),
+    }
+
+    hotels = unavailable_response()
+    if stay_budget["min"] is not None and trip.get("lat") is not None and trip.get("lng") is not None:
+        try:
+            hotels = search_accommodations(
+                lat=trip["lat"],
+                lng=trip["lng"],
+                checkin=trip["checkin"],
+                checkout=trip["checkout"],
+                guests=max(len(members), 1),
+                page_size=10,
+                min_price=stay_budget["min"],
+                max_price=stay_budget["max"],
+            )
+        except Stay22ServiceError:
+            hotels = unavailable_response()
+
+    completed = sum(
+        1 for row in member_rows
+        if all(row[category] is not None for category in ("travel", "stay", "food", "activities"))
+    )
+
+    notes = []
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        notes.append("AI-generated group summary is off — set ANTHROPIC_API_KEY in backend/.env to enable it.")
+    if not os.getenv("AEROXPLORER_TOKEN"):
+        notes.append("Live flight fare estimates are off — set AEROXPLORER_TOKEN in backend/.env to enable them.")
+
+    return {
+        "trip": trip,
+        "members": member_rows,
+        "members_completed": completed,
+        "members_total": len(members),
+        "consensus": consensus,
+        "hotels": hotels,
+        "ai_summary": None,
+        "notes": notes,
     }
 
 

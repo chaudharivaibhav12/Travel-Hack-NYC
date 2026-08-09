@@ -7,31 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ChipSelect, ChipRadio } from "@/components/ui/chip-group";
 import { preferencesProvider } from "@/lib/providers/preferences";
 import type { FoodPreferences } from "@/lib/server/preferences";
-
-const CUISINE_OPTIONS = [
-  { value: "japanese", label: "Japanese" },
-  { value: "italian", label: "Italian" },
-  { value: "street_food", label: "Street food" },
-  { value: "korean", label: "Korean" },
-  { value: "mexican", label: "Mexican" },
-  { value: "indian", label: "Indian" },
-  { value: "mediterranean", label: "Mediterranean" },
-  { value: "american", label: "American" },
-];
-
-const DIETARY_OPTIONS = [
-  { value: "vegetarian", label: "Vegetarian" },
-  { value: "vegan", label: "Vegan" },
-  { value: "halal", label: "Halal" },
-  { value: "gluten_free", label: "Gluten-free" },
-  { value: "none", label: "No restrictions" },
-];
-
-const MEAL_BUDGET_OPTIONS = [
-  { value: "budget", label: "Budget" },
-  { value: "mid", label: "Mid-range" },
-  { value: "splurge", label: "Splurge" },
-];
+import { CUISINE_OPTIONS, DIETARY_OPTIONS, MEAL_BUDGET_OPTIONS } from "@/lib/data/preferences-options";
 
 export function FoodPreferencesForm({
   tripId,

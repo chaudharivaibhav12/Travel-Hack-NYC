@@ -1,21 +1,14 @@
--- GroupGo: members simplification + preferences tables
--- Run once in Supabase → SQL editor. Safe to re-run (IF NOT EXISTS / IF EXISTS guards).
+-- GroupGo: preferences tables
+-- Run once in Supabase → SQL editor. Safe to re-run (IF NOT EXISTS guards).
+--
+-- members already has exactly {id, trip_id, user_id, name, email, avatar},
+-- all nullable except id — someone already applied that simplification, so
+-- there's nothing to alter there. This file only adds the preferences_*
+-- tables the per-category forms write to.
 
--- 1. members: the per-category fields move to preferences_* below. Drop the
---    NOT NULL constraints so a trip's creator can be auto-joined with just a
---    name at trip-creation time, before they've filled anything in.
-ALTER TABLE members ALTER COLUMN budget_min DROP NOT NULL;
-ALTER TABLE members ALTER COLUMN budget_max DROP NOT NULL;
-ALTER TABLE members ALTER COLUMN origin_city DROP NOT NULL;
-ALTER TABLE members ALTER COLUMN origin_airport DROP NOT NULL;
-ALTER TABLE members ALTER COLUMN vibe_raw DROP NOT NULL;
-ALTER TABLE members ALTER COLUMN vibe_params DROP NOT NULL;
-ALTER TABLE members ADD COLUMN IF NOT EXISTS email text;
-ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar text;
-
--- 2. Preferences tables. One row per member per trip per category — the
---    UNIQUE constraint is what makes POST /preferences/* an upsert (fill in
---    once, edit later, same row).
+-- Preferences tables. One row per member per trip per category — the
+-- UNIQUE constraint is what makes POST /preferences/* an upsert (fill in
+-- once, edit later, same row).
 
 CREATE TABLE IF NOT EXISTS preferences_travel (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

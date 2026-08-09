@@ -8,29 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ChipSelect } from "@/components/ui/chip-group";
 import { preferencesProvider } from "@/lib/providers/preferences";
 import type { StayPreferences } from "@/lib/server/preferences";
-
-const PROPERTY_TYPE_OPTIONS = [
-  { value: "hotel", label: "Hotel" },
-  { value: "apartment", label: "Apartment" },
-  { value: "hostel", label: "Hostel" },
-  { value: "villa", label: "Villa" },
-  { value: "cabin", label: "Cabin" },
-];
-
-const VIBE_OPTIONS = [
-  { value: "modern", label: "Modern" },
-  { value: "cozy", label: "Cozy" },
-  { value: "boutique", label: "Boutique" },
-  { value: "budget", label: "Budget" },
-  { value: "luxury", label: "Luxury" },
-];
-
-const NEEDS_OPTIONS = [
-  { value: "private_room", label: "Private room" },
-  { value: "free_cancellation", label: "Free cancellation" },
-  { value: "near_transit", label: "Near transit" },
-  { value: "good_reviews", label: "Good reviews" },
-];
+import { PROPERTY_TYPE_OPTIONS, VIBE_OPTIONS, NEEDS_OPTIONS } from "@/lib/data/preferences-options";
 
 export function StayPreferencesForm({
   tripId,

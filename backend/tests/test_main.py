@@ -557,3 +557,181 @@ def test_get_member_preferences_degrades_to_null_on_exception(client, mock_supab
 
     assert resp.status_code == 200
     assert resp.json() == {"travel": None, "stay": None, "food": None, "activities": None}
+
+
+# ─── consensus helper functions (pure) ─────────────────────────────────────
+
+def test_union_merges_without_duplicates_preserving_order():
+    result = main._union([["hotel", "villa"], ["villa", "cabin"], None])
+    assert result == ["hotel", "villa", "cabin"]
+
+
+def test_mode_returns_most_common_ignoring_none():
+    result = main._mode(["mid", "budget", "mid", None])
+    assert result == "mid"
+
+
+def test_mode_returns_none_when_nothing_present():
+    assert main._mode([None, None]) is None
+
+
+def test_budget_consensus_overlapping_range():
+    assert main._budget_consensus([100, 150], [300, 250]) == {"min": 150, "max": 250}
+
+
+def test_budget_consensus_falls_back_to_average_when_no_overlap():
+    # min=(100+900)/2=500, max=(200+1200)/2=700, same fallback rule as /members/consensus
+    assert main._budget_consensus([100, 900], [200, 1200]) == {"min": 500, "max": 700}
+
+
+def test_budget_consensus_empty_input_returns_nulls():
+    assert main._budget_consensus([], []) == {"min": None, "max": None}
+
+
+def test_flight_groups_flags_members_off_the_majority_date():
+    result = main._flight_groups([
+        {"name": "Alice", "departure_date": "2026-09-01"},
+        {"name": "Bob", "departure_date": "2026-09-01"},
+        {"name": "Carol", "departure_date": "2026-09-02"},
+    ])
+    assert {"date": "2026-09-01", "members": ["Alice", "Bob"]} in result["groups"]
+    assert {"date": "2026-09-02", "members": ["Carol"]} in result["groups"]
+    assert result["warnings"] == ["Carol departs 2026-09-02, most of the group leaves 2026-09-01"]
+
+
+def test_flight_groups_empty_input():
+    assert main._flight_groups([]) == {"groups": [], "warnings": []}
+
+
+# ─── /trips/{trip_id}/plan ─────────────────────────────────────────────────
+
+def test_get_trip_plan_not_found_returns_404(client, mock_supabase):
+    table_mock = _chain(mock_supabase, "trips")
+    table_mock.select.return_value.eq.return_value.single.return_value.execute.return_value = SimpleNamespace(
+        data=None
+    )
+
+    resp = client.get("/trips/does-not-exist/plan")
+
+    assert resp.status_code == 404
+
+
+def test_get_trip_plan_computes_consensus_for_one_member(client, mock_supabase, monkeypatch):
+    trips_mock = MagicMock()
+    trips_mock.select.return_value.eq.return_value.single.return_value.execute.return_value = SimpleNamespace(
+        data={"id": "trip-1", "lat": 41.9, "lng": 12.5, "checkin": "2026-08-11", "checkout": "2026-08-18"}
+    )
+
+    members_mock = MagicMock()
+    members_mock.select.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "member-1", "name": "Alice"}]
+    )
+
+    def pref_table(data):
+        table_mock = MagicMock()
+        table_mock.select.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+            data=data
+        )
+        return table_mock
+
+    _chain_multi(mock_supabase, {
+        "trips": trips_mock,
+        "members": members_mock,
+        "preferences_travel": pref_table([{"origin_airport": "JFK", "departure_date": "2026-08-11"}]),
+        "preferences_stay": pref_table([{"budget_min": 100, "budget_max": 300, "property_types": ["hotel"], "vibes": ["cozy"], "needs": []}]),
+        "preferences_food": pref_table([{"cuisines": ["italian"], "dietary": ["vegetarian"], "meal_budget": "mid"}]),
+        "preferences_activities": pref_table([{"interests": ["museums"], "pace": "relaxed", "must_sees": "Colosseum"}]),
+    })
+
+    monkeypatch.setattr(main, "search_accommodations", lambda **kwargs: {
+        "available": True, "total": 1, "nights": 7, "currency": "USD", "accommodations": [{"name": "Hotel Roma"}],
+    })
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("AEROXPLORER_TOKEN", raising=False)
+
+    resp = client.get("/trips/trip-1/plan")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["members_completed"] == 1
+    assert body["members_total"] == 1
+    assert body["consensus"]["stay"] == {
+        "budget_min": 100, "budget_max": 300, "property_types": ["hotel"], "vibes": ["cozy"], "needs": [],
+    }
+    assert body["consensus"]["food"]["dietary"] == ["vegetarian"]
+    assert body["consensus"]["activities"]["must_sees"] == [{"name": "Alice", "must_sees": "Colosseum"}]
+    assert body["hotels"]["accommodations"] == [{"name": "Hotel Roma"}]
+    assert len(body["notes"]) == 2  # neither ANTHROPIC_API_KEY nor AEROXPLORER_TOKEN is set
+
+
+def test_get_trip_plan_no_members_skips_hotel_search(client, mock_supabase):
+    trips_mock = MagicMock()
+    trips_mock.select.return_value.eq.return_value.single.return_value.execute.return_value = SimpleNamespace(
+        data={"id": "trip-1", "lat": 41.9, "lng": 12.5, "checkin": "2026-08-11", "checkout": "2026-08-18"}
+    )
+    members_mock = MagicMock()
+    members_mock.select.return_value.eq.return_value.execute.return_value = SimpleNamespace(data=[])
+    _chain_multi(mock_supabase, {"trips": trips_mock, "members": members_mock})
+
+    resp = client.get("/trips/trip-1/plan")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["members"] == []
+    assert body["hotels"]["available"] is False
+    assert body["consensus"]["stay"]["budget_min"] is None
+
+
+def test_get_trip_plan_stay22_failure_falls_back_to_unavailable(client, mock_supabase, monkeypatch):
+    trips_mock = MagicMock()
+    trips_mock.select.return_value.eq.return_value.single.return_value.execute.return_value = SimpleNamespace(
+        data={"id": "trip-1", "lat": 41.9, "lng": 12.5, "checkin": "2026-08-11", "checkout": "2026-08-18"}
+    )
+    members_mock = MagicMock()
+    members_mock.select.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "member-1", "name": "Alice"}]
+    )
+
+    def pref_table(data):
+        table_mock = MagicMock()
+        table_mock.select.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+            data=data
+        )
+        return table_mock
+
+    _chain_multi(mock_supabase, {
+        "trips": trips_mock,
+        "members": members_mock,
+        "preferences_travel": pref_table([]),
+        "preferences_stay": pref_table([{"budget_min": 100, "budget_max": 300, "property_types": [], "vibes": [], "needs": []}]),
+        "preferences_food": pref_table([]),
+        "preferences_activities": pref_table([]),
+    })
+
+    def _raise(**kwargs):
+        raise main.Stay22ServiceError("boom")
+
+    monkeypatch.setattr(main, "search_accommodations", _raise)
+
+    resp = client.get("/trips/trip-1/plan")
+
+    assert resp.status_code == 200
+    assert resp.json()["hotels"]["available"] is False
+
+
+def test_get_trip_plan_notes_empty_when_keys_configured(client, mock_supabase, monkeypatch):
+    trips_mock = MagicMock()
+    trips_mock.select.return_value.eq.return_value.single.return_value.execute.return_value = SimpleNamespace(
+        data={"id": "trip-1", "lat": None, "lng": None, "checkin": "2026-08-11", "checkout": "2026-08-18"}
+    )
+    members_mock = MagicMock()
+    members_mock.select.return_value.eq.return_value.execute.return_value = SimpleNamespace(data=[])
+    _chain_multi(mock_supabase, {"trips": trips_mock, "members": members_mock})
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("AEROXPLORER_TOKEN", "Bearer test")
+
+    resp = client.get("/trips/trip-1/plan")
+
+    assert resp.status_code == 200
+    assert resp.json()["notes"] == []

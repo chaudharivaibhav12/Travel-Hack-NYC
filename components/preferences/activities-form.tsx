@@ -7,23 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ChipSelect, ChipRadio } from "@/components/ui/chip-group";
 import { preferencesProvider } from "@/lib/providers/preferences";
 import type { ActivitiesPreferences } from "@/lib/server/preferences";
-
-const INTEREST_OPTIONS = [
-  { value: "markets", label: "Markets" },
-  { value: "museums", label: "Museums" },
-  { value: "nightlife", label: "Nightlife" },
-  { value: "nature", label: "Nature" },
-  { value: "shopping", label: "Shopping" },
-  { value: "hidden_gems", label: "Hidden gems" },
-  { value: "architecture", label: "Architecture" },
-  { value: "beaches", label: "Beaches" },
-];
-
-const PACE_OPTIONS = [
-  { value: "relaxed", label: "Relaxed" },
-  { value: "moderate", label: "Moderate" },
-  { value: "packed", label: "Packed" },
-];
+import { INTEREST_OPTIONS, PACE_OPTIONS } from "@/lib/data/preferences-options";
 
 export function ActivitiesPreferencesForm({
   tripId,
