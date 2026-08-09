@@ -17,6 +17,9 @@ class TripCreate(BaseModel):
     checkin: date
     checkout: date
     user_id: str
+    user_name: str | None = None
+    user_email: str | None = None
+    user_avatar: str | None = None
 
 
 @router.post("")
@@ -37,7 +40,18 @@ def create_trip(trip: TripCreate, supabase: Client = Depends(get_supabase)):
         raise HTTPException(status_code=400, detail=str(error)) from error
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create trip")
-    return {"trip_id": result.data[0]["id"], "trip": result.data[0]}
+    new_trip = result.data[0]
+    try:
+        supabase.table("members").insert({
+            "trip_id": new_trip["id"],
+            "user_id": trip.user_id,
+            "name": trip.user_name or "Trip creator",
+            "email": trip.user_email,
+            "avatar": trip.user_avatar,
+        }).execute()
+    except Exception:
+        pass
+    return {"trip_id": new_trip["id"], "trip": new_trip}
 
 
 @router.get("")

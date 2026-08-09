@@ -291,3 +291,17 @@ modular FastAPI foundation.
 **Database:** `supabase_migration.sql` is retained for review and manual
 application. It is not applied automatically; its development-only disabled
 RLS settings must be replaced with authenticated policies before production.
+
+## 2026-08-09 — MyTrip preference workflow integration
+
+**Decision:** Merge the `MyTrip` frontend while moving its backend additions
+into dedicated `preferences` and `plans` FastAPI routers. Extend the existing
+trip router only for creator auto-membership.
+
+**Why:** This preserves the modular backend and group-trip workflow while
+adding category-based travel, stay, food, and activity preferences plus a
+deterministic single-trip plan. Existing endpoint URLs remain compatible.
+
+**Database:** The preference SQL files are included but not automatically
+applied. Their development-only disabled RLS state requires secure policies
+before production deployment.

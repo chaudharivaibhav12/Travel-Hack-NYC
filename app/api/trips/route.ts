@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { decodeSession, SESSION_COOKIE } from "@/lib/auth/session";
+import { API_BASE } from "@/lib/server/api-base";
 
 /**
  * Server-side proxy to FastAPI's POST /trips.
@@ -11,10 +12,6 @@ import { decodeSession, SESSION_COOKIE } from "@/lib/auth/session";
  * Open-Meteo (same provider the weather feature already trusts, no API key).
  */
 
-const API_BASE =
-  process.env.API_BASE ??
-  process.env.WEATHER_API_BASE ??
-  "http://127.0.0.1:8001";
 const TIMEOUT_MS = 6000;
 const GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search";
 
@@ -98,6 +95,9 @@ export async function POST(request: NextRequest) {
         checkin,
         checkout,
         user_id: user.id,
+        user_name: user.name,
+        user_email: user.email,
+        user_avatar: user.avatar,
       }),
     });
 
