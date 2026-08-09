@@ -7,6 +7,8 @@ from pydantic import BaseModel
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
+import anthropic
+import json
 
 from services.weather import WeatherServiceError, fetch_weather
 from services.stay22 import Stay22ServiceError, search_accommodations, unavailable_response
@@ -286,6 +288,67 @@ def get_weather(
         return fetch_weather(latitude, longitude, start_date, end_date)
     except WeatherServiceError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
+
+
+# ─── Trip Insights (Claude) ───────────────────────────────────────────────────
+
+@app.get("/trips/{trip_id}/insights")
+async def get_trip_insights(trip_id: str):
+    """
+    Like the weather endpoint but powered by Claude.
+    Returns AI-generated insights about the trip based on all member preferences.
+    """
+    trip = supabase.table("trips").select("*").eq("id", trip_id).single().execute().data
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    members = supabase.table("members").select("*").eq("trip_id", trip_id).execute().data
+    travel_prefs = supabase.table("preferences_travel").select("*").eq("trip_id", trip_id).execute().data
+    stay_prefs = supabase.table("preferences_stay").select("*").eq("trip_id", trip_id).execute().data
+    food_prefs = supabase.table("preferences_food").select("*").eq("trip_id", trip_id).execute().data
+    activity_prefs = supabase.table("preferences_activities").select("*").eq("trip_id", trip_id).execute().data
+
+    ai_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+    prompt = f"""
+You are a friendly travel planning assistant. A group is planning a trip to {trip.get('event_location')}.
+Here is everything you know about them:
+
+TRIP: {json.dumps(trip)}
+MEMBERS: {json.dumps(members)}
+TRAVEL PREFERENCES: {json.dumps(travel_prefs)}
+STAY PREFERENCES: {json.dumps(stay_prefs)}
+FOOD PREFERENCES: {json.dumps(food_prefs)}
+ACTIVITY PREFERENCES: {json.dumps(activity_prefs)}
+
+Return a JSON object with exactly these fields:
+{{
+  "group_vibe": "One sentence describing the group's overall travel personality",
+  "summary": "2-3 sentence overview of what kind of trip this will be",
+  "neighborhood_recommendation": "Best area to stay in and why, based on their interests",
+  "top_activities": ["activity 1", "activity 2", "activity 3"],
+  "food_picks": ["type of restaurant/food spot 1", "type 2", "type 3"],
+  "packing_tips": ["tip 1", "tip 2", "tip 3"],
+  "watch_out_for": ["potential issue 1 e.g. budget mismatch", "potential issue 2"],
+  "best_time_to_arrive": "Suggested arrival strategy for the group",
+  "estimated_daily_budget_usd": <integer, estimated total daily spend per person>
+}}
+
+Return only valid JSON, no markdown, no other text.
+"""
+
+    message = ai_client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1000,
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    try:
+        result = json.loads(message.content[0].text)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Claude returned invalid JSON")
+
+    return result
 
 
 # ─── Accommodations ──────────────────────────────────────────────────────────
