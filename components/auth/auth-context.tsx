@@ -14,6 +14,7 @@ import {
   authProvider,
   toAuthUserFromSession,
   type AuthResult,
+  type SignUpResult,
   type AuthUser,
 } from "@/lib/auth/provider";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -25,6 +26,7 @@ interface AuthContextValue {
     identifier: string,
     password: string,
   ) => Promise<AuthResult>;
+  signUpWithPassword: (email: string, password: string) => Promise<SignUpResult>;
   signInWithGoogle: () => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
@@ -116,6 +118,18 @@ export function AuthProviderClient({
     return result;
   }, []);
 
+  const signUpWithPassword = useCallback(
+    async (email: string, password: string) => {
+      const result = await authProvider.signUpWithPassword(email, password);
+      if (result.ok && result.status === "signed_in") {
+        writeSessionCookie(result.user);
+        setUser(result.user);
+      }
+      return result;
+    },
+    [],
+  );
+
   const signOut = useCallback(async () => {
     await authProvider.signOut();
     clearSessionCookie();
@@ -125,8 +139,8 @@ export function AuthProviderClient({
   }, [router]);
 
   const value = useMemo(
-    () => ({ user, signInWithPassword, signInWithGoogle, signOut }),
-    [user, signInWithPassword, signInWithGoogle, signOut],
+    () => ({ user, signInWithPassword, signUpWithPassword, signInWithGoogle, signOut }),
+    [user, signInWithPassword, signUpWithPassword, signInWithGoogle, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
