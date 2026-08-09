@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { CircleHelp } from "lucide-react";
 import { BrandLockup, BrandMark } from "@/components/shell/brand-mark";
 import { NavItem } from "@/components/shell/nav-item";
+import { SignOutButton } from "@/components/shell/sign-out-button";
 import { isNavItemActive, NAV_ITEMS } from "@/lib/config/nav";
 import { cn } from "@/lib/utils";
 
@@ -57,8 +58,8 @@ export function AppSidebar() {
         </ul>
       </nav>
 
-      {/* Pinned help link above a sidebar-border hairline divider. */}
-      <div className="mt-4 border-t border-sidebar-border pt-4">
+      {/* Pinned help link and sign out above a sidebar-border hairline divider. */}
+      <div className="mt-4 flex flex-col items-center gap-1 border-t border-sidebar-border pt-4 xl:items-stretch">
         <span className="xl:hidden">
           <NavItem
             label="Need help?"
@@ -75,6 +76,13 @@ export function AppSidebar() {
             icon={CircleHelp}
             active={false}
           />
+        </span>
+
+        <span className="xl:hidden">
+          <SignOutButton collapsed />
+        </span>
+        <span className="hidden xl:block">
+          <SignOutButton />
         </span>
       </div>
     </aside>
