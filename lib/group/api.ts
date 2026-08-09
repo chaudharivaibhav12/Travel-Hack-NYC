@@ -65,6 +65,35 @@ export async function updateGroupTripRemote(tripId: string, status: GroupTrip['s
   if (!res.ok) throw new Error(await res.text())
 }
 
+export interface GroupInvitation {
+  id: string
+  trip_id: string
+  inviter_email: string
+  invitee_email: string
+  status: 'pending' | 'accepted' | 'declined'
+  trip: Record<string, unknown>
+}
+
+export async function listPendingInvitations(email: string): Promise<GroupInvitation[]> {
+  const res = await fetch(`${BACKEND}/group-trips/invitations/pending?email=${encodeURIComponent(email)}`)
+  if (!res.ok) throw new Error(await res.text())
+  const data = await res.json() as { invitations: GroupInvitation[] }
+  return data.invitations ?? []
+}
+
+export async function respondToInvitation(
+  tripId: string,
+  email: string,
+  response: 'accepted' | 'declined',
+): Promise<void> {
+  const res = await fetch(`${BACKEND}/group-trips/${tripId}/invitations/respond`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, response }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
+
 // ─── Survey ───────────────────────────────────────────────────────────────────
 
 export async function saveSurveyRemote(

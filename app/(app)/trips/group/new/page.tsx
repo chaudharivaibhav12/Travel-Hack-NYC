@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, UserPlus, X, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -20,18 +20,20 @@ interface InvitedMember {
   status: LookupState;
 }
 
+interface UserSuggestion { id: string; email: string; name: string; avatar?: string }
+
 const BACKEND = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8001";
 
-async function lookupUserByEmail(email: string): Promise<{ name: string } | null> {
+async function searchUsers(email: string): Promise<UserSuggestion[]> {
   try {
     const res = await fetch(`${BACKEND}/users/search?email=${encodeURIComponent(email)}`, {
       signal: AbortSignal.timeout(3000),
     });
-    if (!res.ok) return null;
-    const data = await res.json() as { name?: string };
-    return { name: data.name ?? email.split("@")[0] };
+    if (!res.ok) return [];
+    const data = await res.json() as { users?: UserSuggestion[] };
+    return data.users ?? [];
   } catch {
-    return null;
+    return [];
   }
 }
 
@@ -47,9 +49,35 @@ export default function NewGroupTripPage() {
   const [emailInput, setEmailInput] = useState("");
   const [lookupState, setLookupState] = useState<LookupState>("idle");
   const [invitedMembers, setInvitedMembers] = useState<InvitedMember[]>([]);
+  const [suggestions, setSuggestions] = useState<UserSuggestion[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const query = emailInput.trim().toLowerCase();
+    if (query.length < 3) return;
+    const timeout = window.setTimeout(() => {
+      setLookupState("searching");
+      void searchUsers(query).then((users) => {
+        setSuggestions(users.filter((candidate) => candidate.email !== user?.email));
+        setLookupState("idle");
+      });
+    }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [emailInput, user?.email]);
+
+  const addSuggestion = useCallback((candidate: UserSuggestion) => {
+    if (invitedMembers.some((member) => member.email === candidate.email)) return;
+    setInvitedMembers((previous) => [...previous, {
+      email: candidate.email,
+      displayName: candidate.name,
+      status: "found",
+    }]);
+    setEmailInput("");
+    setSuggestions([]);
+    setLookupState("found");
+  }, [invitedMembers]);
 
   const handleAddEmail = useCallback(async () => {
     const email = emailInput.trim().toLowerCase();
@@ -60,7 +88,7 @@ export default function NewGroupTripPage() {
     setError("");
     setLookupState("searching");
 
-    const result = await lookupUserByEmail(email);
+    const result = (await searchUsers(email)).find((candidate) => candidate.email === email);
 
     if (result) {
       setInvitedMembers((prev) => [
@@ -192,7 +220,10 @@ export default function NewGroupTripPage() {
                 type="email"
                 placeholder="friend@example.com"
                 value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
+                onChange={(e) => {
+                  setEmailInput(e.target.value);
+                  if (e.target.value.trim().length < 3) setSuggestions([]);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") { e.preventDefault(); void handleAddEmail(); }
                 }}
@@ -217,6 +248,26 @@ export default function NewGroupTripPage() {
               Add
             </button>
           </div>
+
+          {suggestions.length > 0 ? (
+            <ul className="mt-2 overflow-hidden rounded-md border border-border bg-card shadow-page">
+              {suggestions.map((candidate) => (
+                <li key={candidate.id}>
+                  <button
+                    type="button"
+                    onClick={() => addSuggestion(candidate)}
+                    className="flex w-full items-center justify-between px-3.5 py-2.5 text-left hover:bg-accent"
+                  >
+                    <span>
+                      <span className="block text-[13.5px] font-medium text-foreground">{candidate.name}</span>
+                      <span className="block text-[12px] text-muted-foreground">{candidate.email}</span>
+                    </span>
+                    <UserPlus size={15} className="text-primary" aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
           {lookupState === "not-found" && (
             <p className="mt-2 text-[12px] text-amber-600">

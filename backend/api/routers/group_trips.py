@@ -63,6 +63,11 @@ class GroupTripUpdate(BaseModel):
     status: str
 
 
+class InvitationResponse(BaseModel):
+    email: str
+    response: str
+
+
 # ─── Trip CRUD ────────────────────────────────────────────────────────────────
 
 @router.post("")
@@ -79,16 +84,37 @@ def create_group_trip(body: GroupTripCreate, supabase: Client = Depends(get_supa
     }).execute()
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create group trip")
-    return {"trip_id": result.data[0]["id"], "trip": result.data[0]}
+    trip = result.data[0]
+    if body.invited_emails:
+        invitations = [{
+            "trip_id": trip["id"],
+            "inviter_email": body.organizer_email.lower(),
+            "invitee_email": email.lower(),
+            "status": "pending",
+        } for email in dict.fromkeys(body.invited_emails) if email.lower() != body.organizer_email.lower()]
+        if invitations:
+            supabase.table("group_trip_invitations").upsert(
+                invitations, on_conflict="trip_id,invitee_email"
+            ).execute()
+    return {"trip_id": trip["id"], "trip": trip}
 
 
 @router.get("")
 def list_group_trips(email: str = Query(...), supabase: Client = Depends(get_supabase)):
     as_organizer = supabase.table("group_trips").select("*").eq("organizer_email", email).execute()
-    as_invited   = supabase.table("group_trips").select("*").contains("invited_emails", [email]).execute()
+    accepted = (
+        supabase.table("group_trip_invitations").select("trip_id")
+        .eq("invitee_email", email.lower()).eq("status", "accepted").execute()
+    )
+    accepted_ids = [row["trip_id"] for row in (accepted.data or [])]
+    as_invited_data = []
+    for trip_id in accepted_ids:
+        row = supabase.table("group_trips").select("*").eq("id", trip_id).single().execute()
+        if row.data:
+            as_invited_data.append(row.data)
 
     seen, trips = set(), []
-    for t in (as_organizer.data or []) + (as_invited.data or []):
+    for t in (as_organizer.data or []) + as_invited_data:
         if t["id"] not in seen:
             seen.add(t["id"])
             trips.append(t)
@@ -106,6 +132,36 @@ def list_group_trips(email: str = Query(...), supabase: Client = Depends(get_sup
         }
 
     return {"trips": trips}
+
+
+@router.get("/invitations/pending")
+def list_pending_invitations(email: str = Query(...), supabase: Client = Depends(get_supabase)):
+    result = (
+        supabase.table("group_trip_invitations").select("*")
+        .eq("invitee_email", email.lower()).eq("status", "pending").execute()
+    )
+    invitations = []
+    for invitation in result.data or []:
+        trip = supabase.table("group_trips").select("*").eq("id", invitation["trip_id"]).single().execute()
+        if trip.data:
+            invitations.append({**invitation, "trip": trip.data})
+    return {"invitations": invitations}
+
+
+@router.post("/{trip_id}/invitations/respond")
+def respond_to_invitation(
+    trip_id: str, body: InvitationResponse, supabase: Client = Depends(get_supabase)
+):
+    if body.response not in {"accepted", "declined"}:
+        raise HTTPException(status_code=422, detail="Response must be accepted or declined")
+    result = (
+        supabase.table("group_trip_invitations")
+        .update({"status": body.response, "responded_at": datetime.now(timezone.utc).isoformat()})
+        .eq("trip_id", trip_id).eq("invitee_email", body.email.lower()).eq("status", "pending").execute()
+    )
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Pending invitation not found")
+    return {"invitation": result.data[0]}
 
 
 @router.patch("/{trip_id}")

@@ -332,3 +332,18 @@ set for every member and hydrate it when the plans screen opens.
 **Why:** Local-only generation excluded teammates who completed surveys on other
 machines. Reusing the existing engine avoids a risky rewrite while making the
 create → survey → generate → review handoff collaborative.
+
+## 2026-08-09 — Searchable travelers and explicit invitations
+
+**Decision:** Mirror limited identity fields from `auth.users` into `profiles`
+and store group invitations separately with pending, accepted, and declined
+states. Never expose or query `auth.users` from the browser.
+
+**Why:** Email arrays cannot represent consent, and Supabase intentionally keeps
+authentication records private. The profile directory supports type-ahead while
+the invitation table gives travelers an explicit accept/decline action.
+
+**Permissions:** The migration keeps RLS disabled for compatibility with the
+current hackathon backend. Before production, enable RLS and require authenticated
+users to search profiles, read their own invitations, and update only their own
+pending invitation records.
