@@ -2,14 +2,15 @@
 
 > Most travel apps know *where* I want to go. Sage learns *how* I travel.
 
-An AI travel-planning PWA. This repo currently contains the **UI layer**: auth,
-the responsive app shell, and three built screens. The recommendation engine,
-Supabase, and the AI layer land on top of it.
+An AI travel-planning PWA. This repo contains the **UI layer** (auth, the
+responsive app shell, built screens), a **FastAPI service** in `backend/` for
+weather, and **Supabase auth** wired through it. The recommendation engine and
+the AI layer land on top.
 
-**Read before writing code:** [`MasterPrompt.md`](./MasterPrompt.md) (product +
-engineering rules, ownership map) and [`DESIGN.md`](./DESIGN.md) (the Alpine
-theme — colors, type, components, definition of done). If a chat request
-contradicts those files, the files win.
+**Read before writing code:** [`docs/MasterPrompt.md`](./docs/MasterPrompt.md)
+(product + engineering rules, ownership map) and
+[`docs/DESIGN.md`](./docs/DESIGN.md) (theme — colors, type, components,
+definition of done). If a chat request contradicts those files, the files win.
 
 ---
 
@@ -17,10 +18,35 @@ contradicts those files, the files win.
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000
+cp .env.example .env.local   # then fill in the two Supabase values
+npm run dev                  # http://localhost:3000
 ```
 
 Sign in with **`admin`** / **`admin123`**, or use the Google button (see below).
+
+> **`.env.local` is required for Google sign-in and is not in the repo.** Ask
+> the team for `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+> Without them the app still runs, but it silently falls back to the demo user
+> and the Google button will not work — by design (MasterPrompt §12), so it
+> fails quietly rather than breaking the screen. `admin`/`admin123` always
+> works, with or without credentials.
+
+### Backend (only needed for weather)
+
+Auth does **not** need this — it talks to Supabase directly from the browser.
+
+```bash
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env         # same Supabase values
+uvicorn main:app --port 8001
+pytest                       # 24 tests
+```
+
+Port 8001, not 8000 — 8000 is commonly already taken. If you use a different
+one, set `WEATHER_API_BASE` in `.env.local` to match. With the backend down,
+weather sections are omitted and nothing else is affected.
 
 > **Windows PowerShell:** run each command on its own line. Windows PowerShell
 > 5.1 (the blue-icon one that ships with Windows) does not support `&&` and
