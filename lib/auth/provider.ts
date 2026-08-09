@@ -17,6 +17,11 @@ export interface AuthUser {
   email: string;
   /** How this session was established — surfaced in Settings later. */
   method: "password" | "google";
+  /**
+   * Profile picture from the OAuth provider. Optional: the demo user and any
+   * password sign-in have none, so every consumer must handle its absence.
+   */
+  avatar?: string;
 }
 
 export type AuthResult =
@@ -100,9 +105,13 @@ export function toAuthUser(
   user: User,
   method: AuthUser["method"],
 ): AuthUser {
+  // Google populates these via the `profile` scope; other providers vary, so
+  // every field is treated as optional and falls back.
   const metadata = user.user_metadata as {
     full_name?: string;
     name?: string;
+    avatar_url?: string;
+    picture?: string;
   } | null;
 
   const name =
@@ -111,7 +120,15 @@ export function toAuthUser(
     user.email?.split("@")[0] ||
     "Traveler";
 
-  return { id: user.id, name, email: user.email ?? "", method };
+  const avatar = metadata?.avatar_url?.trim() || metadata?.picture?.trim();
+
+  return {
+    id: user.id,
+    name,
+    email: user.email ?? "",
+    method,
+    ...(avatar ? { avatar } : {}),
+  };
 }
 
 export function toAuthUserFromSession(session: Session): AuthUser {
@@ -175,6 +192,13 @@ class SupabaseAuthProvider implements AuthProvider {
           // Return to /login: `proxy.ts` lets that route through without a
           // session cookie, so the code can be exchanged before redirecting on.
           redirectTo: `${window.location.origin}/login`,
+          queryParams: {
+            // Without this Google silently reuses whichever account is already
+            // signed into the browser and never shows a chooser — so on a
+            // shared or already-signed-in machine you cannot pick an account,
+            // and signing out then back in returns the same profile every time.
+            prompt: "select_account",
+          },
         },
       });
 

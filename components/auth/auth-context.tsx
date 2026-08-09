@@ -63,6 +63,18 @@ export function AuthProviderClient({
       const nextUser = toAuthUserFromSession(session);
       writeSessionCookie(nextUser);
       setUser(nextUser);
+
+      // Landing back on /login after the OAuth round trip, the cookie now
+      // exists but the URL still says /login. Leaving the redirect to the proxy
+      // means the user sits on the login screen staring at a form they already
+      // completed, so navigate explicitly. `window` rather than useSearchParams
+      // keeps this out of the root layout's render path.
+      if (window.location.pathname === "/login") {
+        const destination =
+          new URLSearchParams(window.location.search).get("next") || "/";
+        router.replace(destination);
+      }
+
       router.refresh();
     };
 
