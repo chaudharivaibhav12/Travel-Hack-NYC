@@ -26,6 +26,8 @@ from services.stay22 import (
 )
 
 import main  # noqa: E402
+from api.routers import accommodations as accommodations_router  # noqa: E402
+from api.routers import weather as weather_router  # noqa: E402
 
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -221,7 +223,7 @@ def test_search_accommodations_timeout_returns_service_error():
 
 
 def test_api_endpoint_returns_unavailable_on_timeout(client):
-    with patch("main.search_accommodations", side_effect=Stay22ServiceError("Stay22 request timed out")):
+    with patch.object(accommodations_router, "search_accommodations", side_effect=Stay22ServiceError("Stay22 request timed out")):
         resp = client.get("/accommodations", params={
             "address": "New York City",
             "checkin": "2026-09-01",
@@ -251,7 +253,7 @@ def test_search_accommodations_http_error_raises_service_error():
 
 
 def test_api_endpoint_returns_unavailable_on_http_error(client):
-    with patch("main.search_accommodations", side_effect=Stay22ServiceError("Stay22 returned HTTP 503")):
+    with patch.object(accommodations_router, "search_accommodations", side_effect=Stay22ServiceError("Stay22 returned HTTP 503")):
         resp = client.get("/accommodations", params={
             "address": "New York City",
             "checkin": "2026-09-01",
@@ -295,7 +297,7 @@ def test_normalize_empty_results():
 
 
 def test_api_endpoint_returns_empty_accommodations_list(client):
-    with patch("main.search_accommodations", return_value={
+    with patch.object(accommodations_router, "search_accommodations", return_value={
         "available": True,
         "total": 0,
         "nights": 3,
@@ -378,7 +380,7 @@ def test_health_check_still_works(client):
 
 def test_weather_endpoint_still_wired(client, monkeypatch):
     from services.weather import WeatherServiceError
-    monkeypatch.setattr(main, "fetch_weather", lambda *a: {
+    monkeypatch.setattr(weather_router, "fetch_weather", lambda *a: {
         "location": {}, "hourly": [], "daily": [], "stale": False
     })
     resp = client.get("/weather", params={

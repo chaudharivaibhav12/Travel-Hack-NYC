@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import main  # noqa: E402  (import after sys.path/env setup in conftest.py)
+from api.dependencies import get_supabase  # noqa: E402
 
 
 @pytest.fixture
@@ -24,7 +25,9 @@ def mock_supabase(monkeypatch):
     """Replace the module-level `supabase` client with a MagicMock."""
     mock = MagicMock()
     monkeypatch.setattr(main, "supabase", mock)
-    return mock
+    main.app.dependency_overrides[get_supabase] = lambda: mock
+    yield mock
+    main.app.dependency_overrides.clear()
 
 
 @pytest.fixture

@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import main
+from api.routers import weather as weather_router
 from services.weather import WeatherServiceError, fetch_weather
 
 
@@ -116,7 +117,7 @@ def test_weather_endpoint_returns_forecast(client, monkeypatch):
         "daily": [],
         "stale": False,
     }
-    monkeypatch.setattr(main, "fetch_weather", lambda *args: expected)
+    monkeypatch.setattr(weather_router, "fetch_weather", lambda *args: expected)
 
     response = client.get(
         "/weather",
@@ -165,7 +166,7 @@ def test_weather_endpoint_returns_503_when_provider_fails(client, monkeypatch):
     def fail(*args):
         raise WeatherServiceError("Open-Meteo request failed")
 
-    monkeypatch.setattr(main, "fetch_weather", fail)
+    monkeypatch.setattr(weather_router, "fetch_weather", fail)
 
     response = client.get(
         "/weather",

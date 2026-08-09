@@ -1,5 +1,20 @@
 # GroupGo — Frontend API Documentation
 
+## Adding a New API Module
+
+The FastAPI application is modular. Each domain owns an `APIRouter` in
+`api/routers/`, while `main.py` only creates the application and registers
+routers. To add a provider or Claude agent:
+
+1. Add service/provider logic under `services/`.
+2. Add its HTTP endpoints under `api/routers/`.
+3. Register the router in `main.create_app()`.
+4. Add mocked route tests and isolated service tests under `tests/`.
+
+Keep provider credentials in `backend/.env`; routers should never contain API
+keys. Existing routes remain unversioned for compatibility. New public API
+families may use a prefix such as `/agents` or `/v1`.
+
 ## Base URL
 ```
 http://localhost:8000
