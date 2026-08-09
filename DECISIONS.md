@@ -264,3 +264,16 @@ GET /accommodations?address=New+York+City&checkin=2026-09-01&checkout=2026-09-04
 ```
 STAY22_API_KEY=your-stay22-api-key  # optional; omit for demo mode (5 req/min)
 ```
+
+## 2026-08-09 — Modular FastAPI application foundation
+
+**Decision:** Split the backend into domain routers under `backend/api/routers`
+and keep `backend/main.py` as an application factory and router registry.
+
+**Why:** Weather, accommodations, auth, trips, members, and future Claude agents
+can now evolve independently while sharing middleware and dependencies. Existing
+endpoint URLs remain unchanged, so the frontend does not require a migration.
+
+**Testing:** Supabase is injected with FastAPI dependency overrides. External
+providers remain mocked at the router boundary, preserving offline tests and
+making future agent/provider modules testable without consuming API credits.
